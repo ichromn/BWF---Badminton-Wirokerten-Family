@@ -1,0 +1,6 @@
+{
+  "name": "Sistem Pengelola Turnamen Bulutangkis",
+  "description": "Aplikasi lengkap untuk mengelola turnamen bulutangkis, pengundian braket, papan skor otomatis real-time, statistik pemain, notifikasi penonton, dan simulasi integrasi API.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
