@@ -22,11 +22,10 @@ if (typeof window !== 'undefined') {
     (window as any).FormData.prototype[Symbol.iterator] = function* () { yield* []; };
   }
 
-  // 2. Try to make window.fetch writable if it is configurable
+  // 2. Try to make window.fetch writable so libraries can patch or assign to it
   try {
-    const desc = Object.getOwnPropertyDescriptor(window, 'fetch');
-    if (desc && !desc.writable && desc.configurable) {
-      const originalFetch = window.fetch;
+    const originalFetch = window.fetch;
+    if (originalFetch) {
       Object.defineProperty(window, 'fetch', {
         value: originalFetch,
         writable: true,
