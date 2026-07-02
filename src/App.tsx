@@ -36,6 +36,8 @@ export default function App() {
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
 
+  const isLocalDb = typeof window !== 'undefined' && !!(window as any).isBwfMockActive;
+
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (loginUsername.trim() === 'ichromn' && loginPassword === 'PerumPemdaP55#') {
@@ -128,9 +130,13 @@ export default function App() {
           {/* Quick status controls */}
           <div className="flex items-center gap-3">
             {/* Active tournament indicator */}
-            <span className="hidden sm:inline-flex items-center gap-2 text-[10px] font-mono text-emerald-600 bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-full shadow-sm">
-              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-              API: CONNECTED
+            <span className={`hidden sm:inline-flex items-center gap-2 text-[10px] font-mono px-3.5 py-1.5 rounded-full shadow-sm ${
+              isLocalDb 
+                ? 'text-amber-700 bg-amber-50 border border-amber-200' 
+                : 'text-emerald-600 bg-emerald-50 border border-emerald-200'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isLocalDb ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+              {isLocalDb ? 'API: LOCAL DATABASE' : 'API: CONNECTED'}
             </span>
 
             {/* Manual refresh state button */}
