@@ -345,17 +345,20 @@ export function initMockApi() {
     .then(res => {
       if (res.ok) {
         useMock = false;
+        (window as any).isBwfMockActive = false;
       } else {
         useMock = true;
+        (window as any).isBwfMockActive = true;
       }
       checkedServer = true;
     })
     .catch(() => {
       useMock = true;
+      (window as any).isBwfMockActive = true;
       checkedServer = true;
     });
 
-  window.fetch = async function (input, init) {
+  const customFetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const url = typeof input === 'string' ? input : (input instanceof URL ? input.href : input.url);
 
     // Only intercept requests destined for '/api/'
@@ -364,8 +367,10 @@ export function initMockApi() {
         try {
           const res = await originalFetch('/api/state');
           useMock = !res.ok;
+          (window as any).isBwfMockActive = useMock;
         } catch {
           useMock = true;
+          (window as any).isBwfMockActive = true;
         }
         checkedServer = true;
       }
@@ -385,17 +390,35 @@ export function initMockApi() {
       const response = await originalFetch(input, init);
       if (response.status === 404 && url.includes('/api/')) {
         useMock = true;
+        (window as any).isBwfMockActive = true;
         return handleMockRequest(url, init);
       }
       return response;
     } catch (err) {
       if (url.includes('/api/')) {
         useMock = true;
+        (window as any).isBwfMockActive = true;
         return handleMockRequest(url, init);
       }
       throw err;
     }
   };
+
+  try {
+    Object.defineProperty(window, 'fetch', {
+      value: customFetch,
+      writable: true,
+      configurable: true,
+      enumerable: true
+    });
+  } catch (e) {
+    console.warn("Could not redefine window.fetch with Object.defineProperty, trying default assignment", e);
+    try {
+      (window as any).fetch = customFetch;
+    } catch (err) {
+      console.error("Critical: Cannot override window.fetch", err);
+    }
+  }
 
   function handleMockRequest(urlStr: string, init?: RequestInit): Response {
     const state = getLocalState();

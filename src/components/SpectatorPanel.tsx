@@ -24,7 +24,10 @@ import {
   ChevronRight,
   ShieldAlert,
   MessageSquare,
-  Send
+  Send,
+  MessageCircle,
+  Sparkles,
+  Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -334,47 +337,110 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
         </div>
       </div>
 
-      {/* TOURNAMENT SELECTOR FOR SPECTATORS */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4" id="spectator-tournament-selector">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-emerald-50 rounded-lg text-emerald-700 border border-emerald-100 shrink-0">
-            <Trophy className="w-5 h-5" />
-          </div>
+      {/* TOURNAMENT SELECTOR & PREMIUM REGISTRATION HUB */}
+      <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl text-white relative overflow-hidden flex flex-col lg:flex-row items-stretch justify-between gap-6" id="spectator-tournament-hub">
+        
+        {/* Glow ambient effects */}
+        <div className="absolute -top-12 -right-12 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+        
+        {/* Left Side: Tournament Header & Info */}
+        <div className="flex flex-col justify-between space-y-4 flex-1 relative z-10">
           <div>
-            <h3 className="font-display font-bold text-slate-800 text-sm">Menampilkan Turnamen</h3>
-            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-              <span className="text-[11px] font-mono font-semibold text-slate-500 uppercase">Sedang dilihat:</span>
-              <span className="text-[11px] font-mono font-bold bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded text-emerald-700">
-                {currentTournament.name}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase">
+                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping" />
+                Turnamen Aktif
               </span>
-              {currentTournament.customDate && (
-                <span className="text-[11px] font-mono text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">
-                  📅 {currentTournament.customDate}
-                </span>
-              )}
+              
               {currentViewingTournamentId === activeTournamentIdFromServer && (
-                <span className="text-[9px] font-mono font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded animate-pulse">
-                  LIVE REFEREE
+                <span className="px-2.5 py-1 bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase animate-pulse">
+                  ⚡ LIVE REFEREE
                 </span>
               )}
+            </div>
+
+            <h2 className="font-display font-black text-2xl sm:text-3xl text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-slate-300 tracking-tight leading-tight mt-3">
+              {currentTournament.name}
+            </h2>
+            
+            <p className="text-slate-400 text-xs sm:text-sm mt-1 max-w-xl">
+              Turnamen resmi bulutangkis dengan sistem perolehan skor real-time dan braket otomatis.
+            </p>
+          </div>
+
+          {/* Quick tournament statistics / metadata */}
+          <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-slate-800/60 text-slate-300">
+            <div className="flex items-center gap-2 text-xs font-medium bg-slate-850/60 px-3 py-1.5 rounded-lg border border-slate-800/40">
+              <Calendar className="w-4 h-4 text-emerald-400" />
+              <span>{currentTournament.customDate || "Hari Ini"}</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-medium bg-slate-850/60 px-3 py-1.5 rounded-lg border border-slate-800/40">
+              <Users className="w-4 h-4 text-indigo-400" />
+              <span>{currentTournament.drawSize} Atlet Berlaga</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-medium bg-slate-850/60 px-3 py-1.5 rounded-lg border border-slate-800/40">
+              <Award className="w-4 h-4 text-amber-400" />
+              <span>Sistem BWF</span>
+            </div>
+          </div>
+
+          {/* Tournament Dropdown styled cleanly with glassmorphism */}
+          <div className="flex items-center gap-3 pt-2">
+            <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Lihat Turnamen Lain:</span>
+            <div className="relative">
+              <select
+                value={currentViewingTournamentId || ""}
+                onChange={(e) => setSelectedTournamentId(e.target.value)}
+                className="appearance-none bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs text-white font-mono font-bold py-2 px-4 pr-8 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-md"
+              >
+                {tournaments.map((t) => (
+                  <option key={t.id} value={t.id} className="bg-slate-950 text-white">
+                    {t.name} ({t.drawSize} Atlet) {t.id === activeTournamentIdFromServer ? " [LIVE]" : ""}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                <ChevronRight className="w-4 h-4 rotate-90" />
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider shrink-0">Pilih Turnamen:</label>
-          <select
-            value={currentViewingTournamentId || ""}
-            onChange={(e) => setSelectedTournamentId(e.target.value)}
-            className="w-full sm:w-64 text-xs font-mono font-bold p-2.5 border border-slate-200 rounded-lg bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all cursor-pointer"
+        {/* Right Side: Beautiful Ticket/Registration Banner containing the WhatsApp Button */}
+        <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 border border-emerald-500/20 hover:border-emerald-500/30 p-5 md:p-6 rounded-2xl flex flex-col justify-center items-center lg:items-end text-center lg:text-right gap-3 lg:w-80 relative z-10 shrink-0 shadow-xl transition-all duration-300">
+          <div className="flex items-center gap-2 px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full text-[9px] font-mono font-bold tracking-wider uppercase">
+            <Sparkles className="w-3 h-3 animate-pulse" />
+            Pendaftaran Dibuka
+          </div>
+          
+          <div className="space-y-1">
+            <h4 className="font-display font-black text-base text-white tracking-wide">
+              Ingin Ikut Bertanding?
+            </h4>
+            <p className="text-[11px] text-slate-400 leading-relaxed max-w-[240px]">
+              Daftarkan diri Anda atau tim ganda Anda sekarang untuk mengamankan slot rilis berikutnya!
+            </p>
+          </div>
+
+          {/* Golden/Emerald WhatsApp Button with Glowing Animation */}
+          <a
+            href="https://wa.me/6281238888644?text=Halo%20Admin%20BWF%20Sistem%2C%20saya%20ingin%20mendaftar%20turnamen%20bulutangkis%20terbaru"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full bg-gradient-to-r from-emerald-500 via-emerald-600 to-green-500 hover:from-emerald-400 hover:via-emerald-500 hover:to-green-400 text-white font-display font-black text-xs py-3 px-5 rounded-xl flex items-center justify-center gap-2 uppercase tracking-widest transition-all duration-300 shadow-[0_4px_15px_rgba(16,185,129,0.3)] hover:shadow-[0_8px_25px_rgba(16,185,129,0.45)] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer border border-emerald-400/20"
+            id="whatsapp-registration-button"
+            title="Daftar Turnamen Lewat WhatsApp"
           >
-            {tournaments.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name} ({t.drawSize} Atlet) {t.customDate ? `[${t.customDate}]` : ''} {t.id === activeTournamentIdFromServer ? " [LIVE]" : ""}
-              </option>
-            ))}
-          </select>
+            <MessageCircle className="w-4 h-4 fill-current" />
+            DAFTAR SEKARANG
+          </a>
+
+          <div className="text-[9px] text-slate-500 font-mono mt-1">
+            Melalui WA: 0812-3888-8644
+          </div>
         </div>
+
       </div>
 
       {/* 2. TABBED NAVIGATION */}
