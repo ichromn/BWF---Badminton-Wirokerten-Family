@@ -461,7 +461,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
   };
 
   // Referee: Update Score
-  const handleUpdateScore = async (matchId: string, playerIndex: 1 | 2, action: 'increment' | 'decrement') => {
+  const handleUpdateScore = async (matchId: string, playerIndex: 1 | 2, action: 'increment' | 'decrement' | 'finish-set' | 'finish-match') => {
     try {
       const res = await fetch(`/api/matches/${matchId}/score`, {
         method: 'POST',
@@ -1393,6 +1393,23 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
                       <Plus className="w-4 h-4" /> POIN
                     </button>
                   </div>
+
+                  <div className="mt-3 flex flex-col gap-1.5 pt-3 border-t border-slate-150">
+                    <button
+                      onClick={() => handleUpdateScore(liveMatch.id, 1, 'finish-set')}
+                      className="w-full bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 py-1.5 rounded-lg text-[10px] font-bold tracking-wider uppercase transition-all cursor-pointer"
+                      title="Menangkan set ini untuk atlet ini"
+                    >
+                      Selesaikan Set (Menang)
+                    </button>
+                    <button
+                      onClick={() => handleUpdateScore(liveMatch.id, 1, 'finish-match')}
+                      className="w-full bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 py-1.5 rounded-lg text-[10px] font-bold tracking-wider uppercase transition-all cursor-pointer"
+                      title="Akhiri seluruh laga & menangkan atlet ini"
+                    >
+                      Selesaikan Laga (Menang)
+                    </button>
+                  </div>
                 </div>
 
                 {/* Player 2 Side */}
@@ -1422,6 +1439,23 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
                       title="Tambah 1 Poin"
                     >
                       <Plus className="w-4 h-4" /> POIN
+                    </button>
+                  </div>
+
+                  <div className="mt-3 flex flex-col gap-1.5 pt-3 border-t border-slate-150">
+                    <button
+                      onClick={() => handleUpdateScore(liveMatch.id, 2, 'finish-set')}
+                      className="w-full bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 py-1.5 rounded-lg text-[10px] font-bold tracking-wider uppercase transition-all cursor-pointer"
+                      title="Menangkan set ini untuk atlet ini"
+                    >
+                      Selesaikan Set (Menang)
+                    </button>
+                    <button
+                      onClick={() => handleUpdateScore(liveMatch.id, 2, 'finish-match')}
+                      className="w-full bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 py-1.5 rounded-lg text-[10px] font-bold tracking-wider uppercase transition-all cursor-pointer"
+                      title="Akhiri seluruh laga & menangkan atlet ini"
+                    >
+                      Selesaikan Laga (Menang)
                     </button>
                   </div>
                 </div>

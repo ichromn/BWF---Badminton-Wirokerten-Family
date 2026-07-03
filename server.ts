@@ -779,6 +779,92 @@ async function startServer() {
 
     const currentScore = match.scores[setIdx];
 
+    if (action === 'finish-set') {
+      const setWinner = Number(playerIndex) || 1;
+      const s1 = currentScore.p1;
+      const s2 = currentScore.p2;
+      if (setWinner === 1) {
+        currentScore.p1 = s1 >= 21 ? s1 : 21;
+      } else {
+        currentScore.p2 = s2 >= 21 ? s2 : 21;
+      }
+      
+      const winnerName = setWinner === 1 ? match.player1Name : match.player2Name;
+      addNotification(
+        `🎾 Set ${match.currentSet} Selesai Awal! Dimenangkan oleh ${winnerName} dengan skor ${currentScore.p1}-${currentScore.p2}`,
+        'set_complete',
+        match.id
+      );
+
+      let setsWonP1 = 0;
+      let setsWonP2 = 0;
+
+      match.scores.forEach((score) => {
+        if (score.p1 > score.p2) setsWonP1 += 1;
+        else if (score.p2 > score.p1) setsWonP2 += 1;
+      });
+
+      if (setsWonP1 === 2) {
+        match.status = 'completed';
+        match.winnerId = match.player1Id;
+        addNotification(
+          `🎉 PERTANDINGAN SELESAI AWAL! ${match.player1Name} mengalahkan ${match.player2Name} dengan set ${setsWonP1}-${setsWonP2}!`,
+          'match_complete',
+          match.id
+        );
+        updatePlayerStats(match);
+        advanceWinnerInBracket(match);
+      } else if (setsWonP2 === 2) {
+        match.status = 'completed';
+        match.winnerId = match.player2Id;
+        addNotification(
+          `🎉 PERTANDINGAN SELESAI AWAL! ${match.player2Name} mengalahkan ${match.player1Name} dengan set ${setsWonP2}-${setsWonP1}!`,
+          'match_complete',
+          match.id
+        );
+        updatePlayerStats(match);
+        advanceWinnerInBracket(match);
+      } else {
+        match.currentSet += 1;
+        match.scores.push({ p1: 0, p2: 0 });
+        addNotification(`Memulai Set ${match.currentSet}!`, 'system', match.id);
+      }
+      
+      match.updatedAt = new Date().toISOString();
+      return res.json(match);
+    }
+
+    if (action === 'finish-match') {
+      const matchWinner = Number(playerIndex) || 1;
+      
+      if (matchWinner === 1) {
+        currentScore.p1 = currentScore.p1 >= 21 ? currentScore.p1 : 21;
+        match.status = 'completed';
+        match.winnerId = match.player1Id;
+        
+        addNotification(
+          `🎉 PERTANDINGAN SELESAI CEPAT! ${match.player1Name} dinyatakan menang atas ${match.player2Name}!`,
+          'match_complete',
+          match.id
+        );
+      } else {
+        currentScore.p2 = currentScore.p2 >= 21 ? currentScore.p2 : 21;
+        match.status = 'completed';
+        match.winnerId = match.player2Id;
+        
+        addNotification(
+          `🎉 PERTANDINGAN SELESAI CEPAT! ${match.player2Name} dinyatakan menang atas ${match.player1Name}!`,
+          'match_complete',
+          match.id
+        );
+      }
+      
+      updatePlayerStats(match);
+      advanceWinnerInBracket(match);
+      match.updatedAt = new Date().toISOString();
+      return res.json(match);
+    }
+
     if (playerIndex === 1) {
       if (action === 'increment') {
         currentScore.p1 += 1;

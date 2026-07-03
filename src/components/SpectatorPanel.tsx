@@ -184,43 +184,43 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
           </div>
         </div>
 
-        {/* Court Canvas Area with Net in Middle */}
-        <div className="p-8 grid grid-cols-1 md:grid-cols-11 gap-4 bg-gradient-to-b from-slate-50 via-white to-slate-50 relative min-h-[300px]">
+        {/* Court Canvas Area with Net in Middle (Compact Layout) */}
+        <div className="p-4 grid grid-cols-1 md:grid-cols-11 gap-3 bg-gradient-to-b from-slate-50 via-white to-slate-50 relative min-h-[200px]">
           
           {/* Decorative Court Grid lines */}
-          <div className="absolute inset-0 pointer-events-none border-[12px] border-emerald-100 m-6" />
+          <div className="absolute inset-0 pointer-events-none border-[8px] border-emerald-100 m-4 opacity-70" />
           <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-0.5 bg-emerald-500/10 pointer-events-none" />
 
           {/* LEFT PLAYER: Player 1 */}
-          <div className="md:col-span-5 flex flex-col justify-between items-center text-center p-4 relative z-10 bg-slate-100/50 rounded-xl border border-slate-200">
+          <div className="md:col-span-5 flex flex-col justify-between items-center text-center p-3 relative z-10 bg-slate-100/40 rounded-lg border border-slate-200">
             <div>
-              <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Men's Double 1</span>
-              <h2 className="text-2xl font-black text-slate-900 mt-1 truncate max-w-[220px]">{liveMatch.player1Name}</h2>
-              <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full mt-2 inline-block">SGS Bandung</span>
+              <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Men's Double 1</span>
+              <h2 className="text-lg font-black text-slate-900 mt-0.5 truncate max-w-[220px]" title={liveMatch.player1Name}>{liveMatch.player1Name}</h2>
+              <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full mt-1 inline-block">SGS Bandung</span>
             </div>
 
-            {/* Huge Score Display with animation */}
-            <div className="my-6">
+            {/* Shrunk Score Display with animation */}
+            <div className="my-2">
               <motion.div 
                 key={currentScore.p1}
                 initial={{ scale: 0.8, opacity: 0.5 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-                className="text-8xl font-black font-mono text-slate-900 tracking-tighter filter drop-shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
+                className="text-6xl font-black font-mono text-slate-900 tracking-tighter filter drop-shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
               >
                 {currentScore.p1}
               </motion.div>
             </div>
 
             {/* Historical game markers */}
-            <div className="flex gap-1">
+            <div className="flex gap-1 mt-1">
               {liveMatch.scores.map((set, idx) => (
                 <span 
                   key={idx} 
-                  className={`text-xs px-2 py-1 font-mono font-bold rounded ${
+                  className={`text-[10px] px-2 py-0.5 font-mono font-bold rounded ${
                     set.p1 > set.p2 
                       ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' 
-                      : 'bg-slate-200 text-slate-400'
+                      : 'bg-slate-200 text-slate-450'
                   }`}
                 >
                   G{idx + 1}: {set.p1}
@@ -230,47 +230,47 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
           </div>
 
           {/* MIDDLE: Court Net & Status Indicator */}
-          <div className="md:col-span-1 flex flex-col justify-center items-center text-center relative z-10 min-h-[100px] md:min-h-0">
-            <div className="h-full w-1.5 bg-gradient-to-b from-emerald-500/20 via-emerald-200 to-emerald-500/20 rounded hidden md:block relative">
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white border border-emerald-300 px-2 py-1 rounded text-[9px] font-bold text-emerald-600 rotate-90 uppercase tracking-wider shadow-sm">
+          <div className="md:col-span-1 flex flex-col justify-center items-center text-center relative z-10 min-h-[50px] md:min-h-0">
+            <div className="h-full w-1 bg-gradient-to-b from-emerald-500/20 via-emerald-200 to-emerald-500/20 rounded hidden md:block relative">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white border border-emerald-200 px-2 py-0.5 rounded text-[8px] font-bold text-emerald-500 rotate-90 uppercase tracking-wider shadow-sm">
                 NET
               </div>
             </div>
-            <div className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg flex md:hidden items-center justify-center gap-1.5 text-[10px] text-slate-600 font-bold shadow-sm">
+            <div className="bg-white border border-slate-150 px-2.5 py-1 rounded flex md:hidden items-center justify-center gap-1 text-[9px] text-slate-500 font-bold shadow-sm">
               <span>NET</span>
             </div>
           </div>
 
           {/* RIGHT PLAYER: Player 2 */}
-          <div className="md:col-span-5 flex flex-col justify-between items-center text-center p-4 relative z-10 bg-slate-100/50 rounded-xl border border-slate-200">
+          <div className="md:col-span-5 flex flex-col justify-between items-center text-center p-3 relative z-10 bg-slate-100/40 rounded-lg border border-slate-200">
             <div>
-              <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Men's Double 2</span>
-              <h2 className="text-2xl font-black text-slate-900 mt-1 truncate max-w-[220px]">{liveMatch.player2Name}</h2>
-              <span className="text-xs font-semibold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full mt-2 inline-block">PB Tangkas</span>
+              <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Men's Double 2</span>
+              <h2 className="text-lg font-black text-slate-900 mt-0.5 truncate max-w-[220px]" title={liveMatch.player2Name}>{liveMatch.player2Name}</h2>
+              <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full mt-1 inline-block">PB Tangkas</span>
             </div>
 
-            {/* Huge Score Display with animation */}
-            <div className="my-6">
+            {/* Shrunk Score Display with animation */}
+            <div className="my-2">
               <motion.div 
                 key={currentScore.p2}
                 initial={{ scale: 0.8, opacity: 0.5 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-                className="text-8xl font-black font-mono text-slate-900 tracking-tighter filter drop-shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
+                className="text-6xl font-black font-mono text-slate-900 tracking-tighter filter drop-shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
               >
                 {currentScore.p2}
               </motion.div>
             </div>
 
             {/* Historical game markers */}
-            <div className="flex gap-1">
+            <div className="flex gap-1 mt-1">
               {liveMatch.scores.map((set, idx) => (
                 <span 
                   key={idx} 
-                  className={`text-xs px-2 py-1 font-mono font-bold rounded ${
+                  className={`text-[10px] px-2 py-0.5 font-mono font-bold rounded ${
                     set.p2 > set.p1 
                       ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' 
-                      : 'bg-slate-200 text-slate-400'
+                      : 'bg-slate-200 text-slate-450'
                   }`}
                 >
                   G{idx + 1}: {set.p2}
