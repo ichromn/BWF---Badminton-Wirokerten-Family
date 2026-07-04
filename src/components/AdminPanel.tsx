@@ -622,18 +622,34 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
             </div>
 
             {/* Select Players for New Tournament */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <label className="block text-[10px] font-mono font-bold text-slate-450 uppercase tracking-widest">
-                  PILIH ATLET ({newTourneyPlayers.length} / {newTourneySize} TERPILIH)
-                </label>
-                <button
-                  type="button"
-                  onClick={() => handleQuickSelectForNewTourney(newTourneySize)}
-                  className="text-[10px] font-mono font-bold text-emerald-600 hover:text-emerald-500 transition-colors uppercase"
-                >
-                  [ Pilih Atlet Acak Secara Cepat ]
-                </button>
+            <div className="space-y-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                <div>
+                  <label className="block text-[10px] font-mono font-bold text-slate-450 uppercase tracking-widest">
+                    PILIH ATLET (OPSIONAL)
+                  </label>
+                  <p className="text-[9.5px] text-slate-400 font-mono">
+                    Kosongkan jika ingin menyusun & mengundi pemain belakangan setelah turnamen dibuat.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleQuickSelectForNewTourney(newTourneySize)}
+                    className="text-[9.5px] font-mono font-bold text-emerald-600 hover:text-emerald-500 transition-colors uppercase bg-transparent border-none p-0 cursor-pointer"
+                  >
+                    [ Acak {newTourneySize} ]
+                  </button>
+                  {newTourneyPlayers.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setNewTourneyPlayers([])}
+                      className="text-[9.5px] font-mono font-bold text-rose-600 hover:text-rose-500 transition-colors uppercase bg-transparent border-none p-0 cursor-pointer"
+                    >
+                      [ Kosongkan ({newTourneyPlayers.length}) ]
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-40 overflow-y-auto p-1.5 bg-white border border-slate-200 rounded-lg">
@@ -1619,8 +1635,11 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
                 </div>
               ))
             ) : (
-              <div className="p-8 text-center text-xs text-slate-450 font-mono italic">
-                Belum ada pertandingan dibuat. Buat atau undi turnamen terlebih dahulu.
+              <div className="p-8 text-center text-xs text-slate-500 font-mono space-y-2.5">
+                <p className="italic">🏆 Turnamen ini belum memiliki bagan atau daftar pertandingan.</p>
+                <p className="text-slate-400 text-[10px] max-w-md mx-auto leading-normal">
+                  Jika Anda melewati pemilihan atlet di awal, silakan gunakan panel <strong className="text-indigo-600">"UNDIAN BAGAN ACAK"</strong> di bawah untuk memilih atlet dan mengacak bagan sekarang juga.
+                </p>
               </div>
             )}
           </div>
