@@ -578,6 +578,7 @@ export function initMockApi() {
       const shuffled = performSeededDraw(selectedPlayers, size);
       
       if (activeTournament) {
+        activeTournament.playerIds = playerIds;
         activeTournament.matches = [];
         activeTournament.brackets = [];
         
@@ -613,18 +614,21 @@ export function initMockApi() {
       if (![4, 8, 16, 32, 64].includes(size)) {
         return createJsonResponse({ error: "Ukuran turnamen harus 4, 8, 16, 32, atau 64 atlet." }, 400);
       }
-      if (!playerIds || playerIds.length !== size) {
-        return createJsonResponse({ error: `Harap pilih tepat ${size} atlet untuk turnamen.` }, 400);
+
+      const pIds = playerIds || [];
+      if (pIds.length > 0 && pIds.length !== size) {
+        return createJsonResponse({ error: `Harap pilih tepat ${size} atlet untuk langsung mengundi, atau kosongkan jika ingin menyusun pemain belakangan.` }, 400);
       }
 
       const tDate = customDate || new Date().toISOString().split('T')[0];
       const newTournamentId = `t-${generateId()}`;
+      const hasPlayers = pIds.length === size;
       
       const newTournament: Tournament = {
         id: newTournamentId,
         name,
         drawSize: size,
-        playerIds,
+        playerIds: pIds,
         matches: [],
         brackets: [],
         createdAt: new Date().toISOString(),
@@ -634,14 +638,19 @@ export function initMockApi() {
       state.tournaments.push(newTournament);
       state.activeTournamentId = newTournamentId;
 
-      const selectedPlayers = state.players.filter(p => playerIds.includes(p.id));
-      const shuffled = performSeededDraw(selectedPlayers, size);
+      if (hasPlayers) {
+        const selectedPlayers = state.players.filter(p => pIds.includes(p.id));
+        const shuffled = performSeededDraw(selectedPlayers, size);
 
-      const { matches, brackets } = buildBracketAndMatches(newTournamentId, size, shuffled, tDate);
-      newTournament.matches = matches;
-      newTournament.brackets = brackets;
+        const { matches, brackets } = buildBracketAndMatches(newTournamentId, size, shuffled, tDate);
+        newTournament.matches = matches;
+        newTournament.brackets = brackets;
 
-      addNotification(state, `🏆 Turnamen baru dibuat: ${name} (${size} Atlet) dan langsung diaktifkan!`, 'system');
+        addNotification(state, `🏆 Turnamen baru dibuat: ${name} (${size} Atlet) dan langsung diaktifkan!`, 'system');
+      } else {
+        addNotification(state, `🏆 Turnamen baru dibuat: ${name} (Braket Kosong, susun pemain belakangan)`, 'system');
+      }
+
       saveLocalState(state);
       return createJsonResponse(newTournament, 201);
     }

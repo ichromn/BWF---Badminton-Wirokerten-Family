@@ -5,6 +5,9 @@
 
 import express from "express";
 import path from "path";
+import fs from "fs";
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
 import { createServer as createViteServer } from "vite";
 import { 
   Player, 
@@ -224,6 +227,83 @@ let state = {
   }
 };
 
+// Lazy-initialized Firestore connection
+let firestoreDb: any = null;
+
+function getDb() {
+  if (firestoreDb) return firestoreDb;
+  try {
+    const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+      const firebaseApp = initializeApp({
+        apiKey: config.apiKey,
+        authDomain: config.authDomain,
+        projectId: config.projectId,
+        storageBucket: config.storageBucket,
+        messagingSenderId: config.messagingSenderId,
+        appId: config.appId
+      });
+      firestoreDb = getFirestore(firebaseApp, config.firestoreDatabaseId || "(default)");
+      console.log("🔥 Firebase Firestore connected successfully. Database ID:", config.firestoreDatabaseId || "(default)");
+    } else {
+      console.warn("⚠️ No firebase-applet-config.json file found. Running in-memory database only.");
+    }
+  } catch (err) {
+    console.error("❌ Failed to initialize Firebase Firestore:", err);
+  }
+  return firestoreDb;
+}
+
+// Save current system state to Firestore
+async function saveStateToOnlineDb() {
+  const dbInstance = getDb();
+  if (!dbInstance) return;
+  try {
+    const stateDocRef = doc(dbInstance, "bwf_system", "state");
+    const stateToSave = {
+      players: state.players,
+      tournaments: state.tournaments,
+      activeTournamentId: state.activeTournamentId,
+      notifications: state.notifications,
+      runningText: state.runningText,
+      comments: state.comments,
+      youtubeUrl: state.youtubeUrl,
+      updatedAt: new Date().toISOString()
+    };
+    await setDoc(stateDocRef, stateToSave);
+    console.log("💾 State successfully synchronized with Firestore online database!");
+  } catch (err) {
+    console.error("❌ Error writing state to Firestore:", err);
+  }
+}
+
+// Load system state from Firestore
+async function loadStateFromOnlineDb() {
+  const dbInstance = getDb();
+  if (!dbInstance) return;
+  try {
+    const stateDocRef = doc(dbInstance, "bwf_system", "state");
+    const docSnap = await getDoc(stateDocRef);
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      if (data.players) state.players = data.players;
+      if (data.tournaments) state.tournaments = data.tournaments;
+      if (data.activeTournamentId) state.activeTournamentId = data.activeTournamentId;
+      if (data.notifications) state.notifications = data.notifications;
+      if (data.runningText !== undefined) state.runningText = data.runningText;
+      if (data.comments) state.comments = data.comments;
+      if (data.youtubeUrl) state.youtubeUrl = data.youtubeUrl;
+      console.log("📥 State loaded successfully from Firestore online database!");
+    } else {
+      console.log("ℹ️ No state found in Firestore. Initializing first-time setup online...");
+      await saveStateToOnlineDb();
+    }
+  } catch (err) {
+    console.error("❌ Error reading state from Firestore:", err);
+  }
+}
+
 // Log a notification to the system
 function addNotification(message: string, type: MatchNotification['type'] = 'info', matchId?: string) {
   const newNotification: MatchNotification = {
@@ -364,7 +444,23 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Load online database state on startup
+  await loadStateFromOnlineDb();
+
   app.use(express.json());
+
+  // Automatically sync with online database on successful state-mutating POST requests
+  app.use((req, res, next) => {
+    res.on('finish', () => {
+      if (req.method === 'POST' && res.statusCode >= 200 && res.statusCode < 300) {
+        // Trigger non-blocking database write
+        saveStateToOnlineDb().catch(err => {
+          console.error("Async state sync error:", err);
+        });
+      }
+    });
+    next();
+  });
 
   // API Routes: Player Management
   app.get("/api/players", (req, res) => {
@@ -500,6 +596,12 @@ async function startServer() {
     // Perform seeded draw to place top seeds top-down and separate them
     const shuffled = performSeededDraw(selectedPlayers, size);
 
+    // Update active tournament playerIds
+    const activeT = state.tournaments.find(t => t.id === state.activeTournamentId);
+    if (activeT) {
+      activeT.playerIds = playerIds;
+    }
+
     // Clear old match and bracket state
     state.matches = [];
     state.brackets = [];
@@ -599,18 +701,21 @@ async function startServer() {
     if (![4, 8, 16, 32, 64].includes(size)) {
       return res.status(400).json({ error: "Ukuran turnamen harus 4, 8, 16, 32, atau 64 atlet." });
     }
-    if (!playerIds || playerIds.length !== size) {
-      return res.status(400).json({ error: `Harap pilih tepat ${size} atlet untuk turnamen.` });
+
+    const pIds = playerIds || [];
+    if (pIds.length > 0 && pIds.length !== size) {
+      return res.status(400).json({ error: `Harap pilih tepat ${size} atlet untuk langsung mengundi, atau kosongkan jika ingin menyusun pemain belakangan.` });
     }
 
     const tDate = customDate || new Date().toISOString().split('T')[0];
-
     const newTournamentId = `t-${generateId()}`;
+    const hasPlayers = pIds.length === size;
+
     const newTournament: Tournament = {
       id: newTournamentId,
       name,
       drawSize: size,
-      playerIds,
+      playerIds: pIds,
       matches: [],
       brackets: [],
       createdAt: new Date().toISOString(),
@@ -620,23 +725,23 @@ async function startServer() {
     // Add to tournaments list
     state.tournaments.push(newTournament);
     
-    // Set active tournament temporarily to draw matches
-    const oldActiveId = state.activeTournamentId;
+    // Set active tournament temporarily
     state.activeTournamentId = newTournamentId;
 
-    // Run draw logic!
-    const selectedPlayers = state.players.filter(p => playerIds.includes(p.id));
-    // Run seeded draw logic to place top seeds top-down and separate them
-    const shuffled = performSeededDraw(selectedPlayers, size);
+    if (hasPlayers) {
+      // Run draw logic!
+      const selectedPlayers = state.players.filter(p => pIds.includes(p.id));
+      // Run seeded draw logic to place top seeds top-down and separate them
+      const shuffled = performSeededDraw(selectedPlayers, size);
 
-    const { matches, brackets } = buildBracketAndMatches(newTournamentId, size, shuffled, tDate);
-    newTournament.matches = matches;
-    newTournament.brackets = brackets;
+      const { matches, brackets } = buildBracketAndMatches(newTournamentId, size, shuffled, tDate);
+      newTournament.matches = matches;
+      newTournament.brackets = brackets;
+      addNotification(`🏆 Turnamen baru dibuat: ${name} (${size} Atlet) dan langsung diaktifkan!`, 'system');
+    } else {
+      addNotification(`🏆 Turnamen baru dibuat: ${name} (Braket Kosong, susun pemain belakangan)`, 'system');
+    }
 
-    // Set the newly created tournament as the globally active one!
-    state.activeTournamentId = newTournamentId;
-
-    addNotification(`🏆 Turnamen baru dibuat: ${name} (${size} Atlet) dan langsung diaktifkan!`, 'system');
     res.status(201).json(newTournament);
   });
 

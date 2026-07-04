@@ -99,6 +99,15 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
     }
   }, [serverState.youtubeUrl]);
 
+  useEffect(() => {
+    if (serverState.activeTournamentId && serverState.tournaments) {
+      const activeT = serverState.tournaments.find(t => t.id === serverState.activeTournamentId);
+      if (activeT) {
+        setDrawSize(activeT.drawSize);
+      }
+    }
+  }, [serverState.activeTournamentId, serverState.tournaments]);
+
   const handleSwitchTournament = async (id: string) => {
     try {
       const res = await fetch('/api/tournaments/active', {
@@ -123,8 +132,8 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
       setError("Nama turnamen wajib diisi.");
       return;
     }
-    if (newTourneyPlayers.length !== newTourneySize) {
-      setError(`Harap pilih tepat ${newTourneySize} atlet untuk turnamen ini.`);
+    if (newTourneyPlayers.length > 0 && newTourneyPlayers.length !== newTourneySize) {
+      setError(`Harap pilih tepat ${newTourneySize} atlet untuk langsung mengundi, atau kosongkan (jangan pilih atlet) jika ingin menyusun pemain belakangan.`);
       return;
     }
 
@@ -658,7 +667,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
 
             <button
               type="submit"
-              disabled={isCreatingTourney || newTourneyPlayers.length !== newTourneySize}
+              disabled={isCreatingTourney || (newTourneyPlayers.length > 0 && newTourneyPlayers.length !== newTourneySize)}
               className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-200 disabled:text-slate-400 text-white font-display font-bold text-xs uppercase tracking-wider py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer border-none"
             >
               <Trophy className="w-4 h-4" /> {isCreatingTourney ? 'MEMPROSES...' : 'BUAT & AKTIFKAN TURNAMEN BARU'}
