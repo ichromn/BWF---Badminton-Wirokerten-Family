@@ -405,16 +405,18 @@ export function initMockApi() {
   };
 
   try {
-    Object.defineProperty(window, 'fetch', {
-      value: customFetch,
-      writable: true,
-      configurable: true,
-      enumerable: true
-    });
+    // Attempt direct assignment first. If polyfill.ts set up a getter/setter,
+    // this will invoke the setter and update window.fetch correctly without errors.
+    (window as any).fetch = customFetch;
   } catch (e) {
-    console.warn("Could not redefine window.fetch with Object.defineProperty, trying default assignment", e);
+    console.warn("Direct assignment to window.fetch failed, attempting Object.defineProperty", e);
     try {
-      (window as any).fetch = customFetch;
+      Object.defineProperty(window, 'fetch', {
+        value: customFetch,
+        writable: true,
+        configurable: true,
+        enumerable: true
+      });
     } catch (err) {
       console.error("Critical: Cannot override window.fetch", err);
     }

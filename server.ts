@@ -7,7 +7,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+import { getFirestore, doc, getDoc, setDoc, setLogLevel } from "firebase/firestore";
 import { createServer as createViteServer } from "vite";
 import { 
   Player, 
@@ -244,6 +244,7 @@ function getDb() {
         messagingSenderId: config.messagingSenderId,
         appId: config.appId
       });
+      setLogLevel("error");
       firestoreDb = getFirestore(firebaseApp, config.firestoreDatabaseId || "(default)");
       console.log("🔥 Firebase Firestore connected successfully. Database ID:", config.firestoreDatabaseId || "(default)");
     } else {
