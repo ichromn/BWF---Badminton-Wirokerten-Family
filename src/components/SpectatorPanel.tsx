@@ -29,7 +29,8 @@ import {
   MessageCircle,
   Sparkles,
   Users,
-  Clock
+  Clock,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -1375,19 +1376,26 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="fixed bottom-6 right-6 z-50 max-w-sm bg-white border border-emerald-200 shadow-xl p-4 rounded-xl text-slate-800 flex gap-3"
+            className="fixed bottom-6 right-6 z-50 max-w-sm bg-white border border-emerald-200 shadow-xl p-4 rounded-xl text-slate-800 flex gap-3 relative pr-10"
             id="toast-notification-banner"
           >
             <div className="p-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg shrink-0 h-9 w-9 flex items-center justify-center">
               <Award className="w-5 h-5 fill-emerald-600 stroke-none" />
             </div>
-            <div>
-              <h5 className="font-display font-bold text-xs text-emerald-600 flex items-center justify-between">
+            <div className="flex-1">
+              <h5 className="font-display font-bold text-xs text-emerald-600 flex items-center justify-between gap-4">
                 <span>PEMBERITAHUAN TURNAMEN</span>
                 <span className="text-[9px] text-slate-400 font-mono">{toastNotif.timestamp}</span>
               </h5>
               <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">{toastNotif.message}</p>
             </div>
+            <button 
+              onClick={() => setToastNotif(null)}
+              className="absolute top-3 right-3 p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+              title="Sembunyikan"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
