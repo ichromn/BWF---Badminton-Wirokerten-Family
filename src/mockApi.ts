@@ -1,3 +1,5 @@
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
 import { 
   Player, 
   Match, 
@@ -207,8 +209,95 @@ function getLocalState(): LocalState {
   return defaultState;
 }
 
-function saveLocalState(state: LocalState) {
+declare const __FIREBASE_CONFIG__: any;
+
+let clientFirestoreDb: any = null;
+let clientFirestoreInitialized = false;
+let initialOnlineSyncDone = false;
+
+function getClientFirestore() {
+  if (clientFirestoreInitialized) return clientFirestoreDb;
+  clientFirestoreInitialized = true;
+
+  try {
+    if (typeof __FIREBASE_CONFIG__ !== 'undefined' && __FIREBASE_CONFIG__) {
+      const config = __FIREBASE_CONFIG__;
+      const app = initializeApp(config);
+      clientFirestoreDb = getFirestore(app);
+      console.log("🔥 Client-side Firebase Firestore initialized successfully for Vercel/Mock mode! Database ID:", config.firestoreDatabaseId || "(default)");
+    }
+  } catch (err) {
+    console.warn("⚠️ Client-side Firebase initialization failed:", err);
+  }
+  return clientFirestoreDb;
+}
+
+async function syncFromOnlineDb() {
+  if (initialOnlineSyncDone) return;
+  const db = getClientFirestore();
+  if (!db) return;
+
+  try {
+    const stateDocRef = doc(db, "bwf_system", "state");
+    const docSnap = await getDoc(stateDocRef);
+    if (docSnap.exists()) {
+      const onlineState = docSnap.data();
+      const localState = getLocalState();
+      
+      const mergedState: LocalState = {
+        players: onlineState.players || localState.players,
+        tournaments: onlineState.tournaments || localState.tournaments,
+        activeTournamentId: onlineState.activeTournamentId || localState.activeTournamentId,
+        notifications: onlineState.notifications || localState.notifications,
+        runningText: onlineState.runningText !== undefined ? onlineState.runningText : localState.runningText,
+        comments: onlineState.comments || localState.comments,
+        youtubeUrl: onlineState.youtubeUrl || localState.youtubeUrl,
+      };
+
+      saveLocalStateOnly(mergedState);
+      console.log("📥 State synchronized successfully from Firestore client-side!");
+    } else {
+      console.log("📥 No online state found in Firestore. Uploading current state...");
+      await syncToOnlineDb(getLocalState());
+    }
+    initialOnlineSyncDone = true;
+  } catch (err) {
+    console.error("❌ Error loading state from Firestore (Client):", err);
+    initialOnlineSyncDone = true;
+  }
+}
+
+async function syncToOnlineDb(state: LocalState) {
+  const db = getClientFirestore();
+  if (!db) return;
+
+  try {
+    const stateDocRef = doc(db, "bwf_system", "state");
+    const stateToSave = {
+      players: state.players,
+      tournaments: state.tournaments,
+      activeTournamentId: state.activeTournamentId,
+      notifications: state.notifications,
+      runningText: state.runningText,
+      comments: state.comments,
+      youtubeUrl: state.youtubeUrl,
+      updatedAt: new Date().toISOString()
+    };
+    await setDoc(stateDocRef, stateToSave);
+    console.log("💾 State successfully uploaded to Firestore client-side!");
+  } catch (err) {
+    console.error("❌ Error uploading state to Firestore (Client):", err);
+  }
+}
+
+function saveLocalStateOnly(state: LocalState) {
   localStorage.setItem('bwf_tournament_state', JSON.stringify(state));
+}
+
+function saveLocalState(state: LocalState) {
+  saveLocalStateOnly(state);
+  // Asynchronously upload to online Firestore
+  syncToOnlineDb(state);
 }
 
 function addNotification(state: LocalState, message: string, type: MatchNotification['type'] = 'info', matchId?: string) {
@@ -377,6 +466,7 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
     }
 
     if (useMock) {
+      await syncFromOnlineDb();
       try {
         return handleMockRequest(url, init);
       } catch (err: any) {
@@ -393,6 +483,7 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
     if ((response.status === 404 || !contentType.includes('application/json')) && url.includes('/api/')) {
       useMock = true;
       (window as any).isBwfMockActive = true;
+      await syncFromOnlineDb();
       return handleMockRequest(url, init);
     }
     return response;
@@ -400,6 +491,7 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
     if (url.includes('/api/')) {
       useMock = true;
       (window as any).isBwfMockActive = true;
+      await syncFromOnlineDb();
       return handleMockRequest(url, init);
     }
     throw err;
@@ -422,6 +514,7 @@ function handleMockRequest(urlStr: string, init?: RequestInit): Response {
 
     // 1. GET /api/state
     if (path === '/api/state' && method === 'GET') {
+      const config = typeof __FIREBASE_CONFIG__ !== 'undefined' ? __FIREBASE_CONFIG__ : null;
       return createJsonResponse({
         players: state.players,
         tournaments: state.tournaments,
@@ -433,19 +526,23 @@ function handleMockRequest(urlStr: string, init?: RequestInit): Response {
         comments: state.comments,
         youtubeUrl: state.youtubeUrl,
         dbStatus: {
-          configured: true,
+          configured: !!config,
           lastSync: new Date().toISOString(),
-          databaseId: "MOCK-LOCAL-FIRESTORE"
+          databaseId: config ? (config.firestoreDatabaseId || "(default)") : "MOCK-LOCAL-FIRESTORE"
         }
       });
     }
 
     // POST /api/db/sync
     if (path === '/api/db/sync' && method === 'POST') {
+      const config = typeof __FIREBASE_CONFIG__ !== 'undefined' ? __FIREBASE_CONFIG__ : null;
+      if (config) {
+        syncToOnlineDb(state);
+      }
       return createJsonResponse({
         success: true,
         lastSync: new Date().toISOString(),
-        databaseId: "MOCK-LOCAL-FIRESTORE"
+        databaseId: config ? (config.firestoreDatabaseId || "(default)") : "MOCK-LOCAL-FIRESTORE"
       });
     }
 
