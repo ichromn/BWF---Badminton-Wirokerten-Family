@@ -30,7 +30,8 @@ import {
   Sparkles,
   Users,
   Clock,
-  X
+  X,
+  Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -424,39 +425,70 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
           </div>
         </div>
 
-        {/* Right Side: Beautiful Ticket/Registration Banner containing the WhatsApp Button */}
-        <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 border border-emerald-500/20 hover:border-emerald-500/30 p-5 md:p-6 rounded-2xl flex flex-col justify-center items-center lg:items-end text-center lg:text-right gap-3 lg:w-80 relative z-10 shrink-0 shadow-xl transition-all duration-300">
-          <div className="flex items-center gap-2 px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full text-[9px] font-mono font-bold tracking-wider uppercase">
-            <Sparkles className="w-3 h-3 animate-pulse" />
-            Pendaftaran Dibuka
-          </div>
-          
-          <div className="space-y-1">
-            <h4 className="font-display font-black text-base text-white tracking-wide">
-              Ingin Ikut Bertanding?
-            </h4>
-            <p className="text-[11px] text-slate-400 leading-relaxed max-w-[240px]">
-              Daftarkan diri Anda atau tim ganda Anda sekarang untuk mengamankan slot rilis berikutnya!
-            </p>
-          </div>
+        {/* Right Side: Beautiful Ticket/Registration Banner */}
+        {serverState.registrationClosed ? (
+          <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 border border-rose-500/20 hover:border-rose-500/30 p-5 md:p-6 rounded-2xl flex flex-col justify-center items-center lg:items-end text-center lg:text-right gap-3 lg:w-80 relative z-10 shrink-0 shadow-xl transition-all duration-300">
+            <div className="flex items-center gap-2 px-2.5 py-1 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-full text-[9px] font-mono font-bold tracking-wider uppercase">
+              <Lock className="w-3 h-3 text-rose-500 animate-pulse" />
+              Pendaftaran Ditutup
+            </div>
+            
+            <div className="space-y-1">
+              <h4 className="font-display font-black text-base text-white tracking-wide">
+                Registrasi Ditutup
+              </h4>
+              <p className="text-[11px] text-slate-400 leading-relaxed max-w-[240px]">
+                Pendaftaran peserta untuk turnamen saat ini telah resmi ditutup oleh pengelola. Nantikan turnamen berikutnya!
+              </p>
+            </div>
 
-          {/* Golden/Emerald WhatsApp Button with Glowing Animation */}
-          <a
-            href="https://wa.me/6281238888644?text=Halo%20Admin%20BWF%20Sistem%2C%20saya%20ingin%20mendaftar%20turnamen%20bulutangkis%20terbaru"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full bg-gradient-to-r from-emerald-500 via-emerald-600 to-green-500 hover:from-emerald-400 hover:via-emerald-500 hover:to-green-400 text-white font-display font-black text-xs py-3 px-5 rounded-xl flex items-center justify-center gap-2 uppercase tracking-widest transition-all duration-300 shadow-[0_4px_15px_rgba(16,185,129,0.3)] hover:shadow-[0_8px_25px_rgba(16,185,129,0.45)] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer border border-emerald-400/20"
-            id="whatsapp-registration-button"
-            title="Daftar Turnamen Lewat WhatsApp"
-          >
-            <MessageCircle className="w-4 h-4 fill-current" />
-            DAFTAR SEKARANG
-          </a>
+            {/* Disabled Closed Button */}
+            <div
+              className="w-full bg-slate-800 text-slate-400 font-display font-black text-xs py-3 px-5 rounded-xl flex items-center justify-center gap-2 uppercase tracking-widest border border-slate-700 select-none"
+              id="registration-closed-banner-button"
+            >
+              <Lock className="w-4 h-4" />
+              REGISTRASI TUTUP
+            </div>
 
-          <div className="text-[9px] text-slate-500 font-mono mt-1">
-            Melalui WA: 0812-3888-8644
+            <div className="text-[9px] text-slate-500 font-mono mt-1">
+              Hubungi pengelola untuk info lebih lanjut
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 border border-emerald-500/20 hover:border-emerald-500/30 p-5 md:p-6 rounded-2xl flex flex-col justify-center items-center lg:items-end text-center lg:text-right gap-3 lg:w-80 relative z-10 shrink-0 shadow-xl transition-all duration-300">
+            <div className="flex items-center gap-2 px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full text-[9px] font-mono font-bold tracking-wider uppercase">
+              <Sparkles className="w-3 h-3 animate-pulse" />
+              Pendaftaran Dibuka
+            </div>
+            
+            <div className="space-y-1">
+              <h4 className="font-display font-black text-base text-white tracking-wide">
+                Ingin Ikut Bertanding?
+              </h4>
+              <p className="text-[11px] text-slate-400 leading-relaxed max-w-[240px]">
+                Daftarkan diri Anda atau tim ganda Anda sekarang untuk mengamankan slot rilis berikutnya!
+              </p>
+            </div>
+
+            {/* Golden/Emerald WhatsApp Button with Glowing Animation */}
+            <a
+              href="https://wa.me/6281238888644?text=Halo%20Admin%20BWF%20Sistem%2C%20saya%20ingin%20mendaftar%20turnamen%20bulutangkis%20terbaru"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full bg-gradient-to-r from-emerald-500 via-emerald-600 to-green-500 hover:from-emerald-400 hover:via-emerald-500 hover:to-green-400 text-white font-display font-black text-xs py-3 px-5 rounded-xl flex items-center justify-center gap-2 uppercase tracking-widest transition-all duration-300 shadow-[0_4px_15px_rgba(16,185,129,0.3)] hover:shadow-[0_8px_25px_rgba(16,185,129,0.45)] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer border border-emerald-400/20"
+              id="whatsapp-registration-button"
+              title="Daftar Turnamen Lewat WhatsApp"
+            >
+              <MessageCircle className="w-4 h-4 fill-current" />
+              DAFTAR SEKARANG
+            </a>
+
+            <div className="text-[9px] text-slate-500 font-mono mt-1">
+              Melalui WA: 0812-3888-8644
+            </div>
+          </div>
+        )}
 
       </div>
 
@@ -1368,37 +1400,6 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
           </div>
         )}
       </div>
-
-      {/* 4. NOTIFICATION TOAST POPUP PORTAL */}
-      <AnimatePresence>
-        {toastNotif && (
-          <motion.div 
-            initial={{ opacity: 0, y: 50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="fixed bottom-6 right-6 z-50 max-w-sm bg-white border border-emerald-200 shadow-xl p-4 rounded-xl text-slate-800 flex gap-3 relative pr-10"
-            id="toast-notification-banner"
-          >
-            <div className="p-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg shrink-0 h-9 w-9 flex items-center justify-center">
-              <Award className="w-5 h-5 fill-emerald-600 stroke-none" />
-            </div>
-            <div className="flex-1">
-              <h5 className="font-display font-bold text-xs text-emerald-600 flex items-center justify-between gap-4">
-                <span>PEMBERITAHUAN TURNAMEN</span>
-                <span className="text-[9px] text-slate-400 font-mono">{toastNotif.timestamp}</span>
-              </h5>
-              <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">{toastNotif.message}</p>
-            </div>
-            <button 
-              onClick={() => setToastNotif(null)}
-              className="absolute top-3 right-3 p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
-              title="Sembunyikan"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
     </div>
   );

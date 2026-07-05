@@ -202,6 +202,7 @@ let state = {
     { id: "c-2", author: "Budi_Lover88", text: "Wah seru sekali pertandingannya! Ayo Jojo kejar poinnya!", timestamp: new Date(Date.now() - 150000).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }), avatarColor: "from-indigo-500 to-purple-500" }
   ] as SpectatorComment[],
   youtubeUrl: "https://www.youtube.com/embed/Y-Ony4RveD4",
+  registrationClosed: false,
 
   // Getter/setter for backward compatibility with existing server.ts match-managing code
   get matches() {
@@ -274,6 +275,7 @@ async function saveStateToOnlineDb() {
       runningText: state.runningText,
       comments: state.comments,
       youtubeUrl: state.youtubeUrl,
+      registrationClosed: !!state.registrationClosed,
       updatedAt: nowStr
     };
     const cleanedState = JSON.parse(JSON.stringify(stateToSave));
@@ -301,6 +303,7 @@ async function loadStateFromOnlineDb() {
       if (data.runningText !== undefined) state.runningText = data.runningText;
       if (data.comments) state.comments = data.comments;
       if (data.youtubeUrl) state.youtubeUrl = data.youtubeUrl;
+      if (data.registrationClosed !== undefined) state.registrationClosed = !!data.registrationClosed;
       lastSyncTime = data.updatedAt || new Date().toISOString();
       console.log("📥 State loaded successfully from Firestore online database!");
     } else {
@@ -662,12 +665,22 @@ async function startServer() {
       runningText: state.runningText,
       comments: state.comments,
       youtubeUrl: state.youtubeUrl,
+      registrationClosed: !!state.registrationClosed,
       dbStatus: {
         configured: !!getDb(),
         lastSync: lastSyncTime,
         databaseId: firestoreDbId
       }
     });
+  });
+
+  // API Routes: Update registration status (closed or open)
+  app.post("/api/registration-status", (req, res) => {
+    const { closed } = req.body;
+    state.registrationClosed = !!closed;
+    addNotification(`📋 Pendaftaran turnamen telah ${closed ? 'DITUTUP' : 'DIBUKA'} oleh pengelola`, 'system');
+    saveStateToOnlineDb();
+    res.json({ success: true, registrationClosed: state.registrationClosed });
   });
 
   // API Routes: Update custom running text

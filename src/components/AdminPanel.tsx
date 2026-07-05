@@ -32,7 +32,9 @@ import {
   Tv,
   Video,
   Database,
-  Cloud
+  Cloud,
+  Lock,
+  Unlock
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -104,6 +106,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
 
   // Cloud Database Manual Sync State & Handler
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isRegLoading, setIsRegLoading] = useState(false);
 
   const handleManualSync = async () => {
     setIsSyncing(true);
@@ -1240,6 +1243,85 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
             >
               <Shuffle className="w-4 h-4" />
               {isDrawing ? "MENGUNDI BRAKET..." : "UNDI TURNAMEN SEKARANG"}
+            </button>
+          </div>
+        </div>
+
+        {/* KENDALI PENDAFTARAN ATLET (ADMIN ONLY) */}
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4 animate-fadeIn" id="registration-control-card">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-indigo-600 animate-pulse" />
+              <div>
+                <h4 className="text-xs font-sans font-bold text-slate-800 uppercase tracking-wider">Kendali Pendaftaran Atlet</h4>
+                <p className="text-[10px] text-slate-400 font-mono">Status pendaftaran peserta turnamen bulutangkis</p>
+              </div>
+            </div>
+            
+            {/* Status Badge */}
+            <span className={`text-[9px] font-mono font-bold px-2.5 py-1 rounded-full border ${
+              serverState.registrationClosed
+                ? 'text-rose-600 bg-rose-50 border-rose-200'
+                : 'text-emerald-600 bg-emerald-50 border-emerald-200'
+            }`}>
+              {serverState.registrationClosed ? '❌ PENDAFTARAN DITUTUP' : '✅ PENDAFTARAN DIBUKA'}
+            </span>
+          </div>
+
+          <div className="text-xs text-slate-600 leading-relaxed font-sans">
+            Gunakan opsi ini untuk mengontrol apakah atlet atau tim ganda dapat mendaftar ke turnamen. Saat ditutup, tombol dan petunjuk pendaftaran di halaman penonton akan otomatis disembunyikan dan diganti dengan pemberitahuan resmi bahwa pendaftaran sudah ditutup.
+          </div>
+
+          <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-150">
+            <div className="flex items-center gap-2">
+              {serverState.registrationClosed ? (
+                <Lock className="w-4 h-4 text-rose-500" />
+              ) : (
+                <Unlock className="w-4 h-4 text-emerald-500" />
+              )}
+              <span className="text-xs font-mono font-bold text-slate-700">
+                {serverState.registrationClosed ? 'Status Saat Ini: Ditutup' : 'Status Saat Ini: Dibuka'}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              disabled={isRegLoading}
+              onClick={async () => {
+                const currentlyClosed = !!serverState.registrationClosed;
+                setIsRegLoading(true);
+                try {
+                  const res = await fetch('/api/registration-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ closed: !currentlyClosed })
+                  });
+                  if (res.ok) {
+                    setSuccess(`Status pendaftaran berhasil diubah menjadi: ${!currentlyClosed ? 'DITUTUP' : 'DIBUKA'}`);
+                    onRefresh();
+                  } else {
+                    throw new Error("Gagal memperbarui status pendaftaran.");
+                  }
+                } catch (err: any) {
+                  setError(err.message);
+                } finally {
+                  setIsRegLoading(false);
+                }
+              }}
+              className={`font-mono font-bold text-[10px] py-1.5 px-4 rounded-lg transition-all border-none cursor-pointer shadow-sm uppercase tracking-wide flex items-center gap-1.5 text-white ${
+                serverState.registrationClosed
+                  ? 'bg-emerald-600 hover:bg-emerald-500 shadow-[0_2px_6px_rgba(16,185,129,0.2)]'
+                  : 'bg-rose-600 hover:bg-rose-500 shadow-[0_2px_6px_rgba(244,63,94,0.2)]'
+              }`}
+            >
+              {isRegLoading ? (
+                <span>Memproses...</span>
+              ) : (
+                <>
+                  {serverState.registrationClosed ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                  <span>{serverState.registrationClosed ? 'Buka Pendaftaran' : 'Tutup Pendaftaran'}</span>
+                </>
+              )}
             </button>
           </div>
         </div>

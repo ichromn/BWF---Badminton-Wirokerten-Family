@@ -179,6 +179,7 @@ interface LocalState {
   runningText: string;
   comments: SpectatorComment[];
   youtubeUrl: string;
+  registrationClosed?: boolean;
 }
 
 function getLocalState(): LocalState {
@@ -201,7 +202,8 @@ function getLocalState(): LocalState {
       { id: "c-1", author: "Coach Herry IP", text: "Ginting bermain sangat agresif hari ini. Smes menyilangnya mematikan!", timestamp: new Date(Date.now() - 300000).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }), avatarColor: "from-emerald-500 to-teal-500" },
       { id: "c-2", author: "Budi_Lover88", text: "Wah seru sekali pertandingannya! Ayo Jojo kejar poinnya!", timestamp: new Date(Date.now() - 150000).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }), avatarColor: "from-indigo-500 to-purple-500" }
     ],
-    youtubeUrl: "https://www.youtube.com/embed/Y-Ony4RveD4"
+    youtubeUrl: "https://www.youtube.com/embed/Y-Ony4RveD4",
+    registrationClosed: false
   };
   
   defaultState.tournaments = [generateDefaultTournament(defaultState.players)];
@@ -252,6 +254,7 @@ async function syncFromOnlineDb() {
         runningText: onlineState.runningText !== undefined ? onlineState.runningText : localState.runningText,
         comments: onlineState.comments || localState.comments,
         youtubeUrl: onlineState.youtubeUrl || localState.youtubeUrl,
+        registrationClosed: onlineState.registrationClosed !== undefined ? !!onlineState.registrationClosed : !!localState.registrationClosed,
       };
 
       saveLocalStateOnly(mergedState);
@@ -281,6 +284,7 @@ async function syncToOnlineDb(state: LocalState) {
       runningText: state.runningText,
       comments: state.comments,
       youtubeUrl: state.youtubeUrl,
+      registrationClosed: !!state.registrationClosed,
       updatedAt: new Date().toISOString()
     };
     const cleanedState = JSON.parse(JSON.stringify(stateToSave));
@@ -526,6 +530,7 @@ function handleMockRequest(urlStr: string, init?: RequestInit): Response {
         runningText: state.runningText,
         comments: state.comments,
         youtubeUrl: state.youtubeUrl,
+        registrationClosed: !!state.registrationClosed,
         dbStatus: {
           configured: !!config,
           lastSync: new Date().toISOString(),
@@ -1210,6 +1215,15 @@ function handleMockRequest(urlStr: string, init?: RequestInit): Response {
       addNotification(state, `📢 Running Text diperbarui`, 'system');
       saveLocalState(state);
       return createJsonResponse({ success: true, runningText: state.runningText });
+    }
+
+    // POST /api/registration-status
+    if (path === '/api/registration-status' && method === 'POST') {
+      const { closed } = bodyData;
+      state.registrationClosed = !!closed;
+      addNotification(state, `📋 Pendaftaran turnamen telah ${closed ? 'DITUTUP' : 'DIBUKA'} oleh pengelola`, 'system');
+      saveLocalState(state);
+      return createJsonResponse({ success: true, registrationClosed: state.registrationClosed });
     }
 
     // 20. POST /api/youtube-url
