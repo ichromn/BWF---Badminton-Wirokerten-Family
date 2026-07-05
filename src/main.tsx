@@ -6,9 +6,10 @@ import './index.css';
 import { initMockApi } from './mockApi.ts';
 
 // Initialize the BWF Real-time API Client Fallback Router
-if (typeof window !== 'undefined') {
-  initMockApi();
-}
+// Disabled to ensure the app always uses the real cloud database server and stays fully in sync across devices.
+// if (typeof window !== 'undefined') {
+//   initMockApi();
+// }
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

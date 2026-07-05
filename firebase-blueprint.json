@@ -1,0 +1,42 @@
+{
+  "entities": {
+    "BwfSystemState": {
+      "title": "BwfSystemState",
+      "description": "The global system state for the Badminton Tournament Manager.",
+      "type": "object",
+      "properties": {
+        "players": {
+          "type": "array"
+        },
+        "tournaments": {
+          "type": "array"
+        },
+        "activeTournamentId": {
+          "type": "string"
+        },
+        "notifications": {
+          "type": "array"
+        },
+        "runningText": {
+          "type": "string"
+        },
+        "comments": {
+          "type": "array"
+        },
+        "youtubeUrl": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": ["players", "tournaments", "activeTournamentId", "notifications", "runningText", "comments", "youtubeUrl", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/bwf_system/{docId}": {
+      "schema": "BwfSystemState",
+      "description": "Global tournament management system state documents."
+    }
+  }
+}
