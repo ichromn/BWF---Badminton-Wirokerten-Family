@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { ServerState } from './types.js';
 import AdminPanel from './components/AdminPanel.jsx';
 import SpectatorPanel from './components/SpectatorPanel.jsx';
+import { apiFetch as fetch } from './mockApi';
 import { 
   Trophy, 
   Settings, 

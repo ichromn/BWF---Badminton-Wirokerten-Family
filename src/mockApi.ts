@@ -327,102 +327,76 @@ function updatePlayerStats(state: LocalState, match: Match) {
   p2.pointsWon += p2Points;
 }
 
-// Global fetch override implementation
-export function initMockApi() {
-  const originalFetch = window.fetch;
-  let checkedServer = false;
-  let useMock = false;
+// Shared variables for the api fallback
+const originalFetch = typeof window !== 'undefined' ? window.fetch : null as any;
+let checkedServer = false;
+let useMock = false;
 
-  const createJsonResponse = (data: any, status = 200) => {
-    return new Response(JSON.stringify(data), {
-      status,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  };
+export const createJsonResponse = (data: any, status = 200) => {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json' }
+  });
+};
 
-  // Perform quick initial check
-  originalFetch('/api/state')
-    .then(res => {
-      if (res.ok) {
-        useMock = false;
-        (window as any).isBwfMockActive = false;
-      } else {
+// Standalone safe fetch wrapper that intercepts '/api/' and routes to Mock API if server is unavailable.
+// This completely avoids unsafe monkey-patching of window.fetch and getter/setter exceptions on Vercel.
+export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const url = typeof input === 'string' ? input : (input instanceof URL ? input.href : input.url);
+
+  if (typeof window === 'undefined') {
+    return new Response(JSON.stringify({ error: "Window is not defined" }), { status: 500 });
+  }
+
+  // Only intercept requests destined for '/api/'
+  if (url.includes('/api/')) {
+    if (!checkedServer) {
+      try {
+        const res = await originalFetch('/api/state');
+        useMock = !res.ok;
+        (window as any).isBwfMockActive = useMock;
+      } catch {
         useMock = true;
         (window as any).isBwfMockActive = true;
       }
       checkedServer = true;
-    })
-    .catch(() => {
-      useMock = true;
-      (window as any).isBwfMockActive = true;
-      checkedServer = true;
-    });
-
-  const customFetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-    const url = typeof input === 'string' ? input : (input instanceof URL ? input.href : input.url);
-
-    // Only intercept requests destined for '/api/'
-    if (url.includes('/api/')) {
-      if (!checkedServer) {
-        try {
-          const res = await originalFetch('/api/state');
-          useMock = !res.ok;
-          (window as any).isBwfMockActive = useMock;
-        } catch {
-          useMock = true;
-          (window as any).isBwfMockActive = true;
-        }
-        checkedServer = true;
-      }
-
-      if (useMock) {
-        try {
-          return handleMockRequest(url, init);
-        } catch (err: any) {
-          console.error("[Mock API Error]", err);
-          return createJsonResponse({ error: err.message || "Unknown mock error" }, 500);
-        }
-      }
     }
 
-    // Otherwise, delegate to native fetch (or if mock is turned off)
-    try {
-      const response = await originalFetch(input, init);
-      if (response.status === 404 && url.includes('/api/')) {
-        useMock = true;
-        (window as any).isBwfMockActive = true;
+    if (useMock) {
+      try {
         return handleMockRequest(url, init);
+      } catch (err: any) {
+        console.error("[Mock API Error]", err);
+        return createJsonResponse({ error: err.message || "Unknown mock error" }, 500);
       }
-      return response;
-    } catch (err) {
-      if (url.includes('/api/')) {
-        useMock = true;
-        (window as any).isBwfMockActive = true;
-        return handleMockRequest(url, init);
-      }
-      throw err;
-    }
-  };
-
-  try {
-    // Attempt direct assignment first. If polyfill.ts set up a getter/setter,
-    // this will invoke the setter and update window.fetch correctly without errors.
-    (window as any).fetch = customFetch;
-  } catch (e) {
-    console.warn("Direct assignment to window.fetch failed, attempting Object.defineProperty", e);
-    try {
-      Object.defineProperty(window, 'fetch', {
-        value: customFetch,
-        writable: true,
-        configurable: true,
-        enumerable: true
-      });
-    } catch (err) {
-      console.error("Critical: Cannot override window.fetch", err);
     }
   }
 
-  function handleMockRequest(urlStr: string, init?: RequestInit): Response {
+  // Otherwise, delegate to native fetch (or if mock is turned off)
+  try {
+    const response = await originalFetch(input, init);
+    if (response.status === 404 && url.includes('/api/')) {
+      useMock = true;
+      (window as any).isBwfMockActive = true;
+      return handleMockRequest(url, init);
+    }
+    return response;
+  } catch (err) {
+    if (url.includes('/api/')) {
+      useMock = true;
+      (window as any).isBwfMockActive = true;
+      return handleMockRequest(url, init);
+    }
+    throw err;
+  }
+}
+
+// Kept for backward compatibility but safely does nothing to prevent "only has a getter" exceptions
+export function initMockApi() {
+  // Safe no-op
+}
+
+function handleMockRequest(urlStr: string, init?: RequestInit): Response {
     const state = getLocalState();
     const activeTournament = state.tournaments.find(t => t.id === state.activeTournamentId) || state.tournaments[0];
     
@@ -1182,4 +1156,3 @@ export function initMockApi() {
     // Default 404 fallback
     return createJsonResponse({ error: "Endpoint tidak ditemukan" }, 404);
   }
-}
