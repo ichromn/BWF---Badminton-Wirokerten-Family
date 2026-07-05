@@ -223,7 +223,7 @@ function getClientFirestore() {
     if (typeof __FIREBASE_CONFIG__ !== 'undefined' && __FIREBASE_CONFIG__) {
       const config = __FIREBASE_CONFIG__;
       const app = initializeApp(config);
-      clientFirestoreDb = getFirestore(app);
+      clientFirestoreDb = getFirestore(app, config.firestoreDatabaseId || "(default)");
       console.log("🔥 Client-side Firebase Firestore initialized successfully for Vercel/Mock mode! Database ID:", config.firestoreDatabaseId || "(default)");
     }
   } catch (err) {
