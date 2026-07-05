@@ -28,7 +28,8 @@ import {
   Send,
   MessageCircle,
   Sparkles,
-  Users
+  Users,
+  Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -37,9 +38,13 @@ interface SpectatorPanelProps {
 }
 
 export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
-  const [activeTab, setActiveTab] = useState<'scoreboard' | 'bracket' | 'history' | 'stats'>('scoreboard');
+  const [activeTab, setActiveTab] = useState<'scoreboard' | 'schedule' | 'bracket' | 'history' | 'stats'>('scoreboard');
   const [toastNotif, setToastNotif] = useState<MatchNotification | null>(null);
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
+
+  // Match Schedule Filters State
+  const [scheduleStatusFilter, setScheduleStatusFilter] = useState<'all' | 'scheduled' | 'live' | 'completed'>('all');
+  const [scheduleRoundFilter, setScheduleRoundFilter] = useState<string>('all');
 
   // Sidebar Tabs & Commentary State
   const [sidebarTab, setSidebarTab] = useState<'logs' | 'comments'>('logs');
@@ -83,6 +88,16 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
 
   const matchesToRender = currentTournament.matches || [];
   const bracketsToRender = currentTournament.brackets || [];
+
+  // Find the first scheduled match id to highlight it as "Next Up"
+  const firstScheduledMatchId = (matchesToRender.find(m => m.status === 'scheduled'))?.id || null;
+
+  // Filter matches based on schedule filters
+  const filteredMatches = matchesToRender.filter(match => {
+    const matchesStatus = scheduleStatusFilter === 'all' || match.status === scheduleStatusFilter;
+    const matchesRound = scheduleRoundFilter === 'all' || match.round === scheduleRoundFilter;
+    return matchesStatus && matchesRound;
+  });
 
   const liveMatch = matchesToRender.find(m => m.status === 'live');
   const completedMatches = matchesToRender.filter(m => m.status === 'completed');
@@ -445,10 +460,10 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
       </div>
 
       {/* 2. TABBED NAVIGATION */}
-      <div className="flex bg-white p-1.5 rounded-xl border border-slate-200 gap-1.5 shadow-sm">
+      <div className="flex bg-white p-1.5 rounded-xl border border-slate-200 gap-1.5 shadow-sm overflow-x-auto scrollbar-none">
         <button
           onClick={() => setActiveTab('scoreboard')}
-          className={`flex-1 py-2.5 px-4 rounded-lg font-display font-bold text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 cursor-pointer ${
+          className={`flex-1 py-2.5 px-4 rounded-lg font-display font-bold text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'scoreboard'
               ? 'bg-emerald-600 text-white shadow-[0_2px_8px_rgba(16,185,129,0.25)]'
               : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
@@ -457,8 +472,18 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
           <Tv className="w-4 h-4" /> PAPAN SKOR LIVE
         </button>
         <button
+          onClick={() => setActiveTab('schedule')}
+          className={`flex-1 py-2.5 px-4 rounded-lg font-display font-bold text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'schedule'
+              ? 'bg-emerald-600 text-white shadow-[0_2px_8px_rgba(16,185,129,0.25)]'
+              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+          }`}
+        >
+          <Calendar className="w-4 h-4" /> JADWAL LAGA
+        </button>
+        <button
           onClick={() => setActiveTab('bracket')}
-          className={`flex-1 py-2.5 px-4 rounded-lg font-display font-bold text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 cursor-pointer ${
+          className={`flex-1 py-2.5 px-4 rounded-lg font-display font-bold text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'bracket'
               ? 'bg-emerald-600 text-white shadow-[0_2px_8px_rgba(16,185,129,0.25)]'
               : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
@@ -468,7 +493,7 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
         </button>
         <button
           onClick={() => setActiveTab('history')}
-          className={`flex-1 py-2.5 px-4 rounded-lg font-display font-bold text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 cursor-pointer ${
+          className={`flex-1 py-2.5 px-4 rounded-lg font-display font-bold text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'history'
               ? 'bg-emerald-600 text-white shadow-[0_2px_8px_rgba(16,185,129,0.25)]'
               : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
@@ -478,7 +503,7 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
         </button>
         <button
           onClick={() => setActiveTab('stats')}
-          className={`flex-1 py-2.5 px-4 rounded-lg font-display font-bold text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 cursor-pointer ${
+          className={`flex-1 py-2.5 px-4 rounded-lg font-display font-bold text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'stats'
               ? 'bg-emerald-600 text-white shadow-[0_2px_8px_rgba(16,185,129,0.25)]'
               : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
@@ -763,6 +788,238 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* TAB: MATCH SCHEDULE / JADWAL PERTANDINGAN */}
+        {activeTab === 'schedule' && (
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm animate-fadeIn" id="match-schedule-tab">
+            <div className="border-b border-slate-200 pb-4 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h3 className="font-display font-bold text-slate-800 text-lg tracking-wide flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-emerald-600" /> JADWAL PERTANDINGAN
+                </h3>
+                <p className="text-xs text-slate-500 font-mono mt-0.5 uppercase">DAFTAR PERTANDINGAN DAN ESTIMASI WAKTU MULAI</p>
+              </div>
+              
+              {/* Filter controls */}
+              <div className="flex flex-wrap gap-2">
+                <select
+                  value={scheduleStatusFilter}
+                  onChange={(e) => setScheduleStatusFilter(e.target.value as any)}
+                  className="bg-slate-50 border border-slate-200 text-xs font-mono font-bold py-1.5 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                >
+                  <option value="all">Semua Status</option>
+                  <option value="scheduled">Mendatang</option>
+                  <option value="live">Live</option>
+                  <option value="completed">Selesai</option>
+                </select>
+                
+                <select
+                  value={scheduleRoundFilter}
+                  onChange={(e) => setScheduleRoundFilter(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 text-xs font-mono font-bold py-1.5 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                >
+                  <option value="all">Semua Babak</option>
+                  {Array.from(new Set(matchesToRender.map(m => m.round))).map(round => (
+                    <option key={round} value={round}>{round}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Schedule Cards/Timeline */}
+            {filteredMatches.length > 0 ? (
+              <div className="relative border-l border-slate-200 pl-6 ml-3 space-y-6">
+                {filteredMatches.map((match) => {
+                  const isLive = match.status === 'live';
+                  const isCompleted = match.status === 'completed';
+                  const isScheduled = match.status === 'scheduled';
+                  
+                  // Next up match identification
+                  const isNextUp = isScheduled && match.id === firstScheduledMatchId;
+
+                  return (
+                    <div key={match.id} className="relative group">
+                      {/* Timeline dot */}
+                      <div className={`absolute -left-[31px] top-1.5 w-4 h-4 rounded-full border-2 bg-white flex items-center justify-center transition-all ${
+                        isLive 
+                          ? 'border-emerald-500 scale-125 ring-4 ring-emerald-500/20' 
+                          : isNextUp 
+                            ? 'border-amber-500 scale-110 ring-4 ring-amber-500/20' 
+                            : isCompleted 
+                              ? 'border-slate-300 bg-slate-100' 
+                              : 'border-indigo-400'
+                      }`}>
+                        {isLive && <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />}
+                        {isNextUp && <div className="w-1.5 h-1.5 bg-amber-500 rounded-full" />}
+                      </div>
+
+                      {/* Schedule card */}
+                      <div className={`p-5 rounded-2xl border transition-all ${
+                        isLive 
+                          ? 'bg-gradient-to-br from-white to-emerald-50/10 border-emerald-500 shadow-md ring-1 ring-emerald-500/10' 
+                          : isNextUp 
+                            ? 'bg-gradient-to-br from-white to-amber-50/10 border-amber-300 shadow-sm' 
+                            : isCompleted 
+                              ? 'bg-slate-50/60 border-slate-200 opacity-75' 
+                              : 'bg-white border-slate-200 hover:border-indigo-300 shadow-sm hover:shadow-md'
+                      }`}>
+                        
+                        {/* Card Header Info */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-[10px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                              ID: {match.id.toUpperCase()}
+                            </span>
+                            <span className="font-sans text-xs font-bold text-slate-600">
+                              {match.round}
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center gap-1.5">
+                            {isLive && (
+                              <span className="inline-flex items-center gap-1 bg-rose-500 text-white text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
+                                <span className="w-1.5 h-1.5 bg-white rounded-full" /> LIVE SEKARANG
+                              </span>
+                            )}
+                            {isNextUp && (
+                              <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                ⚡ BERIKUTNYA
+                              </span>
+                            )}
+                            {isScheduled && !isNextUp && (
+                              <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                MENDATANG
+                              </span>
+                            )}
+                            {isCompleted && (
+                              <span className="bg-slate-200 text-slate-600 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                SELESAI
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Match content row */}
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                          {/* Player 1 details */}
+                          <div className="md:col-span-4 flex items-center justify-between md:justify-end gap-3">
+                            <div className="text-left md:text-right">
+                              <p className={`font-display font-black text-sm tracking-tight ${
+                                isCompleted && match.winnerId === match.player1Id ? 'text-amber-600' : 'text-slate-800'
+                              }`}>
+                                {match.player1Name || "Belum ditentukan"}
+                              </p>
+                              <p className="text-[10px] font-mono text-slate-400 mt-0.5">SGS Bandung</p>
+                            </div>
+                            <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-700 font-display font-bold text-xs flex items-center justify-center shrink-0">
+                              P1
+                            </div>
+                          </div>
+
+                          {/* VS center badge */}
+                          <div className="md:col-span-4 flex flex-col items-center justify-center py-2 bg-slate-50 rounded-xl border border-slate-100">
+                            {isLive ? (
+                              <div className="text-center">
+                                <span className="text-[9px] font-mono font-extrabold text-rose-500 tracking-wider uppercase animate-pulse block mb-1">SKOR REAL-TIME</span>
+                                <div className="flex gap-1.5 justify-center font-mono font-black text-xs text-emerald-600">
+                                  {match.scores.map((set, sIdx) => (
+                                    <span key={sIdx} className="bg-white px-2 py-0.5 rounded border border-slate-250 shadow-sm">
+                                      {set.p1}-{set.p2}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : isCompleted ? (
+                              <div className="text-center">
+                                <span className="text-[9px] font-mono font-extrabold text-slate-500 uppercase tracking-widest block mb-1">SKOR AKHIR</span>
+                                <div className="flex gap-1.5 justify-center font-mono font-bold text-xs text-slate-700">
+                                  {match.scores.map((set, sIdx) => (
+                                    <span key={sIdx} className="bg-white px-2 py-0.5 rounded border border-slate-200 shadow-sm">
+                                      {set.p1}-{set.p2}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-xs font-mono font-black text-slate-400 bg-white border border-slate-200 px-2.5 py-1 rounded shadow-inner">
+                                VS
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Player 2 details */}
+                          <div className="md:col-span-4 flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-700 font-display font-bold text-xs flex items-center justify-center shrink-0">
+                              P2
+                            </div>
+                            <div className="text-left">
+                              <p className={`font-display font-black text-sm tracking-tight ${
+                                isCompleted && match.winnerId === match.player2Id ? 'text-amber-600' : 'text-slate-800'
+                              }`}>
+                                {match.player2Name || "Belum ditentukan"}
+                              </p>
+                              <p className="text-[10px] font-mono text-slate-400 mt-0.5">PB Tangkas</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Match estimated time / court details */}
+                        <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+                          {/* Court location */}
+                          <div className="flex items-center gap-1.5 text-slate-500 font-mono">
+                            <Tv className="w-3.5 h-3.5 text-slate-400" />
+                            <span>Lapangan: <span className="text-slate-700 font-bold">{currentTournament.name.replace("Turnamen Utama", "")}</span></span>
+                          </div>
+
+                          {/* Date and time */}
+                          <div className="flex items-center gap-3">
+                            {match.customDate && (
+                              <div className="flex items-center gap-1 text-slate-500 font-mono bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
+                                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                <span>{match.customDate}</span>
+                              </div>
+                            )}
+
+                            <div className={`flex items-center gap-1.5 font-mono px-2.5 py-1 rounded border ${
+                              isLive 
+                                ? 'bg-rose-50 text-rose-700 border-rose-200 font-black' 
+                                : isNextUp 
+                                  ? 'bg-amber-50 text-amber-700 border-amber-200 font-black animate-pulse' 
+                                  : 'bg-slate-50 text-slate-700 border-slate-200'
+                            }`}>
+                              <Clock className="w-3.5 h-3.5" />
+                              <span>
+                                {isLive 
+                                  ? 'Berlangsung' 
+                                  : match.customTime 
+                                    ? `Perkiraan Mulai: ${match.customTime} WIB` 
+                                    : 'Perkiraan Mulai: TBA'
+                                }
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-16 space-y-4">
+                <div className="w-16 h-16 bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center mx-auto text-slate-400">
+                  <Calendar className="w-8 h-8 text-slate-350" />
+                </div>
+                <div>
+                  <h4 className="font-display font-bold text-slate-800 text-sm tracking-wide">TIDAK ADA JADWAL PERTANDINGAN</h4>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 leading-relaxed">
+                    Tidak ditemukan pertandingan mendatang yang sesuai dengan filter saat ini.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
