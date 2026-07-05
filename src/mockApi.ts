@@ -283,7 +283,8 @@ async function syncToOnlineDb(state: LocalState) {
       youtubeUrl: state.youtubeUrl,
       updatedAt: new Date().toISOString()
     };
-    await setDoc(stateDocRef, stateToSave);
+    const cleanedState = JSON.parse(JSON.stringify(stateToSave));
+    await setDoc(stateDocRef, cleanedState);
     console.log("💾 State successfully uploaded to Firestore client-side!");
   } catch (err) {
     console.error("❌ Error uploading state to Firestore (Client):", err);

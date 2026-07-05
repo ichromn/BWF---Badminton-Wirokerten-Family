@@ -276,7 +276,8 @@ async function saveStateToOnlineDb() {
       youtubeUrl: state.youtubeUrl,
       updatedAt: nowStr
     };
-    await setDoc(stateDocRef, stateToSave);
+    const cleanedState = JSON.parse(JSON.stringify(stateToSave));
+    await setDoc(stateDocRef, cleanedState);
     lastSyncTime = nowStr;
     console.log("💾 State successfully synchronized with Firestore online database!");
   } catch (err) {
