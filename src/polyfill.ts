@@ -22,7 +22,7 @@ if (typeof window !== 'undefined') {
     (window as any).FormData.prototype[Symbol.iterator] = function* () { yield* []; };
   }
 
-  // 2. Define a getter and setter for window.fetch.
+  // 2. Define getter/setter or writable data descriptor for window.fetch on all targets.
   // We try defining it on multiple objects in the prototype chain so that
   // any third-party assignments (like window.fetch = custom) work without throwing read-only errors.
   let currentFetch = window.fetch;
@@ -37,6 +37,8 @@ if (typeof window !== 'undefined') {
 
   for (const target of targets) {
     if (!target) continue;
+    
+    // First, try defining as a getter/setter accessor property
     try {
       Object.defineProperty(target, 'fetch', {
         get() {
@@ -49,31 +51,30 @@ if (typeof window !== 'undefined') {
         enumerable: true
       });
       patched = true;
-      break;
     } catch (e) {
-      // Keep trying other targets
-    }
-  }
-
-  if (!patched) {
-    // If defining getter/setter failed completely, we can try to delete the property first
-    // (if it is configurable but has a getter/setter we couldn't modify)
-    try {
-      delete (window as any).fetch;
-      (window as any).fetch = currentFetch;
-    } catch (e) {
-      // If delete fails, try defining directly as writable value
+      // If accessor definition fails (e.g. browser security policy on window),
+      // try defining it as a writable, configurable data property
       try {
-        Object.defineProperty(window, 'fetch', {
+        Object.defineProperty(target, 'fetch', {
           value: currentFetch,
           writable: true,
           configurable: true,
           enumerable: true
         });
+        patched = true;
       } catch (err) {
-        // Fallback: if we absolutely cannot make window.fetch writable, we wrap it in a Proxy if possible,
-        // or we just handle assignments by logging warnings.
+        // Keep trying other targets
       }
+    }
+  }
+
+  if (!patched) {
+    // If defining failed on all targets, attempt a clean delete and re-assignment
+    try {
+      delete (window as any).fetch;
+      (window as any).fetch = currentFetch;
+    } catch (e) {
+      // Ultimate fallback: do nothing if absolutely restricted
     }
   }
 }

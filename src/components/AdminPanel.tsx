@@ -29,7 +29,9 @@ import {
   Trash2,
   Zap,
   Tv,
-  Video
+  Video,
+  Database,
+  Cloud
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -98,6 +100,30 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
       setCustomYoutubeUrl(serverState.youtubeUrl);
     }
   }, [serverState.youtubeUrl]);
+
+  // Cloud Database Manual Sync State & Handler
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    try {
+      const res = await fetch('/api/db/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (res.ok) {
+        setSuccess("Aksi berhasil! Seluruh data turnamen dan riwayat berhasil disimpan ke Cloud Database (Firestore).");
+        onRefresh();
+      } else {
+        const err = await res.json();
+        throw new Error(err.error || "Gagal melakukan sinkronisasi manual ke cloud.");
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   useEffect(() => {
     if (serverState.activeTournamentId && serverState.tournaments) {
@@ -1307,6 +1333,75 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
                 Simpan Video
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* SINKRONISASI CLOUD DATABASE */}
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm" id="cloud-database-card">
+          <div className="flex items-center justify-between mb-5 border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-sky-50 text-sky-700 rounded-lg border border-sky-100">
+                <Database className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-display font-bold text-slate-800 tracking-wide">SINKRONISASI CLOUD DATABASE</h3>
+                <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Simpan dan amankan data turnamen ke Firestore</p>
+              </div>
+            </div>
+            {serverState.dbStatus?.configured ? (
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                ONLINE
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
+                OFFLINE
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-4 font-sans text-xs text-slate-600">
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-150 space-y-2">
+              <div className="flex justify-between items-center font-mono text-[10px]">
+                <span className="text-slate-400 uppercase">Provider Database:</span>
+                <span className="font-bold text-slate-700">Google Cloud Firestore</span>
+              </div>
+              <div className="flex justify-between items-center font-mono text-[10px]">
+                <span className="text-slate-400 uppercase">Database ID:</span>
+                <span className="font-bold text-slate-700 truncate max-w-[200px]" title={serverState.dbStatus?.databaseId || "(default)"}>
+                  {serverState.dbStatus?.databaseId || "(default)"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center font-mono text-[10px]">
+                <span className="text-slate-400 uppercase">Sinkronisasi Terakhir:</span>
+                <span className="font-bold text-indigo-600">
+                  {serverState.dbStatus?.lastSync 
+                    ? new Date(serverState.dbStatus.lastSync).toLocaleString('id-ID', { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric', 
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        second: '2-digit'
+                      }) 
+                    : "Belum pernah"}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Sistem Anda secara otomatis melakukan pencadangan data ke cloud database Firestore pada setiap perubahan data yang berhasil. Anda juga dapat memaksa sinkronisasi kapan saja untuk memastikan seluruh status turnamen, statistik atlet, dan live scoreboard tersimpan dengan aman di server cloud.
+            </p>
+
+            <button
+              type="button"
+              onClick={handleManualSync}
+              disabled={isSyncing || !serverState.dbStatus?.configured}
+              className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-150 disabled:text-slate-400 text-white font-display font-bold text-xs uppercase tracking-wider py-3 px-4 rounded-lg shadow-[0_2px_8px_rgba(79,70,229,0.25)] transition-all flex items-center justify-center gap-2 cursor-pointer border-none"
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+              {isSyncing ? 'SEDANG MENYINKRONKAN...' : 'SIMPAN SEKARANG KE CLOUD DATABASE'}
+            </button>
           </div>
         </div>
 

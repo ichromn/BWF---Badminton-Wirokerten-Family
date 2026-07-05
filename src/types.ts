@@ -88,4 +88,9 @@ export interface ServerState {
   runningText?: string;
   comments?: SpectatorComment[];
   youtubeUrl?: string;
+  dbStatus?: {
+    configured: boolean;
+    lastSync: string | null;
+    databaseId: string | null;
+  };
 }

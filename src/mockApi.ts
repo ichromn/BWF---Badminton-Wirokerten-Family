@@ -442,7 +442,21 @@ export function initMockApi() {
         notifications: state.notifications,
         runningText: state.runningText,
         comments: state.comments,
-        youtubeUrl: state.youtubeUrl
+        youtubeUrl: state.youtubeUrl,
+        dbStatus: {
+          configured: true,
+          lastSync: new Date().toISOString(),
+          databaseId: "MOCK-LOCAL-FIRESTORE"
+        }
+      });
+    }
+
+    // POST /api/db/sync
+    if (path === '/api/db/sync' && method === 'POST') {
+      return createJsonResponse({
+        success: true,
+        lastSync: new Date().toISOString(),
+        databaseId: "MOCK-LOCAL-FIRESTORE"
       });
     }
 

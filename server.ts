@@ -229,6 +229,8 @@ let state = {
 
 // Lazy-initialized Firestore connection
 let firestoreDb: any = null;
+let firestoreDbId: string | null = null;
+let lastSyncTime: string | null = null;
 
 function getDb() {
   if (firestoreDb) return firestoreDb;
@@ -246,7 +248,8 @@ function getDb() {
       });
       setLogLevel("error");
       firestoreDb = getFirestore(firebaseApp, config.firestoreDatabaseId || "(default)");
-      console.log("🔥 Firebase Firestore connected successfully. Database ID:", config.firestoreDatabaseId || "(default)");
+      firestoreDbId = config.firestoreDatabaseId || "(default)";
+      console.log("🔥 Firebase Firestore connected successfully. Database ID:", firestoreDbId);
     } else {
       console.warn("⚠️ No firebase-applet-config.json file found. Running in-memory database only.");
     }
@@ -262,6 +265,7 @@ async function saveStateToOnlineDb() {
   if (!dbInstance) return;
   try {
     const stateDocRef = doc(dbInstance, "bwf_system", "state");
+    const nowStr = new Date().toISOString();
     const stateToSave = {
       players: state.players,
       tournaments: state.tournaments,
@@ -270,9 +274,10 @@ async function saveStateToOnlineDb() {
       runningText: state.runningText,
       comments: state.comments,
       youtubeUrl: state.youtubeUrl,
-      updatedAt: new Date().toISOString()
+      updatedAt: nowStr
     };
     await setDoc(stateDocRef, stateToSave);
+    lastSyncTime = nowStr;
     console.log("💾 State successfully synchronized with Firestore online database!");
   } catch (err) {
     console.error("❌ Error writing state to Firestore:", err);
@@ -295,6 +300,7 @@ async function loadStateFromOnlineDb() {
       if (data.runningText !== undefined) state.runningText = data.runningText;
       if (data.comments) state.comments = data.comments;
       if (data.youtubeUrl) state.youtubeUrl = data.youtubeUrl;
+      lastSyncTime = data.updatedAt || new Date().toISOString();
       console.log("📥 State loaded successfully from Firestore online database!");
     } else {
       console.log("ℹ️ No state found in Firestore. Initializing first-time setup online...");
@@ -623,6 +629,26 @@ async function startServer() {
     });
   });
 
+  // API Routes: Manual database save/sync
+  app.post("/api/db/sync", async (req, res) => {
+    try {
+      const dbInstance = getDb();
+      if (!dbInstance) {
+        return res.status(400).json({ error: "Cloud database tidak terkonfigurasi pada server." });
+      }
+      await saveStateToOnlineDb();
+      addNotification("💾 Sinkronisasi manual dengan cloud database berhasil!", "system");
+      res.json({
+        success: true,
+        lastSync: lastSyncTime,
+        databaseId: firestoreDbId
+      });
+    } catch (err: any) {
+      console.error("Manual database sync error:", err);
+      res.status(500).json({ error: err.message || "Gagal melakukan sinkronisasi database." });
+    }
+  });
+
   // API Routes: Get all state for live visual dashboard
   app.get("/api/state", (req, res) => {
     res.json({
@@ -634,7 +660,12 @@ async function startServer() {
       notifications: state.notifications,
       runningText: state.runningText,
       comments: state.comments,
-      youtubeUrl: state.youtubeUrl
+      youtubeUrl: state.youtubeUrl,
+      dbStatus: {
+        configured: !!getDb(),
+        lastSync: lastSyncTime,
+        databaseId: firestoreDbId
+      }
     });
   });
 
