@@ -133,11 +133,19 @@ export default function App() {
             {/* Active tournament indicator */}
             <span className={`hidden sm:inline-flex items-center gap-2 text-[10px] font-mono px-3.5 py-1.5 rounded-full shadow-sm ${
               isLocalDb 
-                ? 'text-amber-700 bg-amber-50 border border-amber-200' 
+                ? (state?.dbStatus?.configured 
+                    ? 'text-emerald-600 bg-emerald-50 border border-emerald-200' 
+                    : 'text-amber-700 bg-amber-50 border border-amber-200')
                 : 'text-emerald-600 bg-emerald-50 border border-emerald-200'
             }`}>
-              <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isLocalDb ? 'bg-amber-500' : 'bg-emerald-500'}`} />
-              {isLocalDb ? 'API: LOCAL DATABASE' : 'API: CONNECTED'}
+              <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                isLocalDb 
+                  ? (state?.dbStatus?.configured ? 'bg-emerald-500' : 'bg-amber-500')
+                  : 'bg-emerald-500'
+              }`} />
+              {isLocalDb 
+                ? (state?.dbStatus?.configured ? 'API: LOCAL + FIRESTORE' : 'API: LOCAL DATABASE') 
+                : 'API: CONNECTED'}
             </span>
 
             {/* Manual refresh state button */}
