@@ -353,8 +353,22 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
     if (!checkedServer) {
       try {
         const res = await originalFetch('/api/state');
-        useMock = !res.ok;
-        (window as any).isBwfMockActive = useMock;
+        const contentType = res.headers.get('content-type') || '';
+        if (res.ok && contentType.includes('application/json')) {
+          // Verify that it is actual valid JSON with expected properties, and not a 200 OK HTML fallback page
+          const clone = res.clone();
+          const testData = await clone.json();
+          if (testData && typeof testData === 'object' && ('players' in testData || 'tournaments' in testData)) {
+            useMock = false;
+            (window as any).isBwfMockActive = false;
+          } else {
+            useMock = true;
+            (window as any).isBwfMockActive = true;
+          }
+        } else {
+          useMock = true;
+          (window as any).isBwfMockActive = true;
+        }
       } catch {
         useMock = true;
         (window as any).isBwfMockActive = true;
@@ -375,7 +389,8 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
   // Otherwise, delegate to native fetch (or if mock is turned off)
   try {
     const response = await originalFetch(input, init);
-    if (response.status === 404 && url.includes('/api/')) {
+    const contentType = response.headers.get('content-type') || '';
+    if ((response.status === 404 || !contentType.includes('application/json')) && url.includes('/api/')) {
       useMock = true;
       (window as any).isBwfMockActive = true;
       return handleMockRequest(url, init);
