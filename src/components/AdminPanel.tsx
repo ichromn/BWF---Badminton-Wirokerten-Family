@@ -1132,11 +1132,11 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
                             </span>
                           )}
                         </div>
-                        <p className="text-[10px] text-indigo-600 font-medium truncate font-mono">{player.club}</p>
+                        <p className="text-[10px] text-amber-600 font-medium truncate font-mono">{player.club}</p>
                         <div className="flex items-center gap-2 mt-1.5 text-[9px] text-slate-400 font-mono">
                           <span>Main: <strong className="text-slate-600">{player.matchesPlayed}</strong></span>
                           <span>•</span>
-                          <span>Menang: <strong className="text-emerald-600">{player.matchesWon}</strong></span>
+                          <span>Menang: <strong className="text-emerald-800">{player.matchesWon}</strong></span>
                           <span>•</span>
                           <span>Set: <strong className="text-slate-600">{player.setsWon}</strong></span>
                         </div>
@@ -1149,7 +1149,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
                             setEditingPlayerClub(player.club);
                             setEditingPlayerSeed(player.seed ? String(player.seed) : '');
                           }}
-                          className="p-1.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 hover:border-indigo-200 rounded text-slate-400 transition-all cursor-pointer"
+                          className="p-1.5 bg-white hover:bg-emerald-50 hover:text-emerald-800 border border-slate-200 hover:border-emerald-200 rounded text-slate-400 transition-all cursor-pointer"
                           title="Edit Atlet"
                         >
                           <Edit className="w-3.5 h-3.5" />
@@ -1174,7 +1174,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm" id="tournament-draw-card">
           <div className="flex items-center justify-between mb-5 border-b border-slate-100 pb-4">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-100">
+              <div className="p-2.5 bg-amber-50 text-amber-800 rounded-lg border border-amber-100">
                 <Shuffle className="w-5 h-5" />
               </div>
               <div>
@@ -1198,7 +1198,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
                     }}
                     className={`flex-1 min-w-[70px] py-2.5 px-3 text-xs font-mono font-bold rounded-lg border transition-all cursor-pointer ${
                       drawSize === size
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-[0_2px_8px_rgba(99,102,241,0.25)]'
+                        ? 'bg-emerald-800 text-white border-emerald-800 shadow-[0_2px_8px_rgba(6,95,70,0.25)]'
                         : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100/60'
                     }`}
                   >
@@ -1210,12 +1210,12 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
 
             <div className="bg-slate-50 p-3 rounded-lg flex items-center justify-between border border-slate-200 font-mono">
               <span className="text-[11px] text-slate-500 font-medium">
-                Pemain Terpilih: <span className="text-emerald-600 font-bold">{selectedPlayerIds.length} / {drawSize}</span>
+                Pemain Terpilih: <span className="text-emerald-800 font-bold">{selectedPlayerIds.length} / {drawSize}</span>
               </span>
               <button
                 type="button"
                 onClick={() => handleQuickSelect(drawSize)}
-                className="text-[10px] text-emerald-600 hover:text-emerald-700 font-bold flex items-center gap-1 cursor-pointer bg-transparent border-none"
+                className="text-[10px] text-emerald-800 hover:text-emerald-700 font-bold flex items-center gap-1 cursor-pointer bg-transparent border-none"
               >
                 <Users className="w-3.5 h-3.5" /> Ambil {drawSize} Acak
               </button>
@@ -1231,7 +1231,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
                     onClick={() => togglePlayerSelection(player.id)}
                     className={`flex items-center justify-between p-2 rounded-lg cursor-pointer border transition-all ${
                       isSelected 
-                        ? 'bg-indigo-50/60 border-indigo-200 text-indigo-900 shadow-sm' 
+                        ? 'bg-emerald-50/60 border-emerald-200 text-emerald-900 shadow-sm' 
                         : 'bg-white hover:bg-slate-50 border-slate-150 text-slate-600'
                     }`}
                   >
@@ -1247,7 +1247,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
                       <p className="text-[9px] text-slate-400 font-mono">{player.club}</p>
                     </div>
                     <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                      isSelected ? 'border-indigo-500 bg-indigo-500 text-white' : 'border-slate-200 bg-white'
+                      isSelected ? 'border-emerald-800 bg-emerald-800 text-white' : 'border-slate-200 bg-white'
                     }`}>
                       {isSelected && <span className="text-[9px] font-bold">✓</span>}
                     </div>
@@ -1260,7 +1260,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
               type="button"
               onClick={handleDrawTournament}
               disabled={isDrawing || selectedPlayerIds.length > drawSize || selectedPlayerIds.length < 2}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-display font-bold text-xs uppercase tracking-wider py-3 px-4 rounded-lg shadow-[0_2px_8px_rgba(99,102,241,0.25)] transition-all flex items-center justify-center gap-2 cursor-pointer border-none"
+              className="w-full bg-emerald-800 hover:bg-emerald-700 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-display font-bold text-xs uppercase tracking-wider py-3 px-4 rounded-lg shadow-[0_2px_8px_rgba(6,95,70,0.25)] transition-all flex items-center justify-center gap-2 cursor-pointer border-none"
             >
               <Shuffle className="w-4 h-4" />
               {isDrawing ? "MENGUNDI BRAKET..." : "UNDI TURNAMEN SEKARANG"}
@@ -1272,7 +1272,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4 animate-fadeIn" id="registration-control-card">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-indigo-600 animate-pulse" />
+              <Calendar className="w-5 h-5 text-amber-500 animate-pulse" />
               <div>
                 <h4 className="text-xs font-sans font-bold text-slate-800 uppercase tracking-wider">Kendali Pendaftaran Atlet</h4>
                 <p className="text-[10px] text-slate-400 font-mono">Status pendaftaran peserta turnamen bulutangkis</p>

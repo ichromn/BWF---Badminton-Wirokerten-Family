@@ -96,12 +96,12 @@ export default function App() {
     }
   }, [errorMsg]);
 
-  if (isLoading || !state) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center text-slate-800 p-6" id="app-loading">
         <div className="space-y-4 text-center">
-          <RefreshCw className="w-10 h-10 animate-spin text-emerald-600 mx-auto" />
-          <h2 className="font-extrabold text-lg tracking-tight">Memuat Sistem Bulutangkis...</h2>
+          <RefreshCw className="w-10 h-10 animate-spin text-emerald-800 mx-auto" />
+          <h2 className="font-display font-extrabold text-xl tracking-tight text-emerald-800">Memuat Sistem Bulutangkis...</h2>
           <p className="text-xs text-slate-500">Menghubungkan ke server pengelola turnamen real-time</p>
         </div>
       </div>
@@ -116,8 +116,8 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           
           {/* Logo brand - SmashControl theme */}
-          <div className="flex items-center gap-3 font-display">
-            <div className="p-2 bg-emerald-500 rounded-lg text-white shadow-[0_2px_10px_rgba(16,185,129,0.3)] flex items-center justify-center font-bold text-sm min-w-[36px] h-9">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-emerald-800 border-l-4 border-amber-500 rounded-r-lg text-white shadow-[0_2px_10px_rgba(6,95,70,0.3)] flex items-center justify-center font-bold text-sm min-w-[36px] h-9">
               {state?.appLogo ? (
                 <span className="text-base select-none">{state.appLogo}</span>
               ) : (
@@ -125,9 +125,9 @@ export default function App() {
               )}
             </div>
             <div>
-              <h1 className="text-xl font-black tracking-tighter uppercase italic text-slate-900 leading-none">
+              <h1 className="text-xl font-display font-black tracking-tight text-emerald-800 leading-none">
                 {state?.appTitle ? state.appTitle : (
-                  <>BWF<span className="text-emerald-500 underline decoration-2 underline-offset-4"> TOURNAMENT</span></>
+                  <>BWF<span className="text-amber-500 underline decoration-2 underline-offset-4"> TOURNAMENT</span></>
                 )}
               </h1>
               <span className="text-[9px] text-slate-500 uppercase tracking-widest font-mono font-bold block mt-1">by Ichromn</span>
@@ -140,14 +140,14 @@ export default function App() {
             <span className={`hidden sm:inline-flex items-center gap-2 text-[10px] font-mono px-3.5 py-1.5 rounded-full shadow-sm ${
               isLocalDb 
                 ? (state?.dbStatus?.configured 
-                    ? 'text-emerald-600 bg-emerald-50 border border-emerald-200' 
+                    ? 'text-emerald-800 bg-emerald-50 border border-emerald-200' 
                     : 'text-amber-700 bg-amber-50 border border-amber-200')
-                : 'text-emerald-600 bg-emerald-50 border border-emerald-200'
+                : 'text-emerald-800 bg-emerald-50 border border-emerald-200'
             }`}>
               <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${
                 isLocalDb 
-                  ? (state?.dbStatus?.configured ? 'bg-emerald-500' : 'bg-amber-500')
-                  : 'bg-emerald-500'
+                  ? (state?.dbStatus?.configured ? 'bg-emerald-600' : 'bg-amber-500')
+                  : 'bg-emerald-600'
               }`} />
               {isLocalDb 
                 ? (state?.dbStatus?.configured ? 'API: LOCAL + FIRESTORE' : 'API: LOCAL DATABASE') 
@@ -157,11 +157,11 @@ export default function App() {
             {/* Manual refresh state button */}
             <button
               onClick={() => fetchState(true)}
-              className="p-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-slate-500 hover:text-emerald-600 transition-colors cursor-pointer"
+              className="p-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-slate-500 hover:text-emerald-800 transition-colors cursor-pointer"
               title="Refresh Data"
               disabled={isRefreshing}
             >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-emerald-500' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-emerald-800' : ''}`} />
             </button>
 
             {/* PERSISTENT VIEW SELECTOR ROLE */}
@@ -171,7 +171,7 @@ export default function App() {
                   onClick={() => setRole('spectator')}
                   className={`py-1.5 px-3 text-xs font-mono font-bold rounded transition-all flex items-center gap-1 cursor-pointer ${
                     role === 'spectator'
-                      ? 'bg-emerald-600 text-white shadow-[0_2px_8px_rgba(16,185,129,0.25)]'
+                      ? 'bg-emerald-800 text-white shadow-[0_2px_8px_rgba(6,95,70,0.25)]'
                       : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
@@ -181,7 +181,7 @@ export default function App() {
                   onClick={() => setRole('admin')}
                   className={`py-1.5 px-3 text-xs font-mono font-bold rounded transition-all flex items-center gap-1 cursor-pointer ${
                     role === 'admin'
-                      ? 'bg-indigo-600 text-white shadow-[0_2px_8px_rgba(99,102,241,0.25)]'
+                      ? 'bg-amber-500 text-slate-950 shadow-[0_2px_8px_rgba(245,158,11,0.25)]'
                       : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
@@ -213,12 +213,12 @@ export default function App() {
       {/* DYNAMIC GLOBAL NOTIFICATION TOAST BOX */}
       <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 mt-4">
         {successMsg && (
-          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3 rounded-lg shadow-sm flex items-center justify-between text-xs font-mono font-medium animate-fadeIn">
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 p-3 rounded-lg shadow-sm flex items-center justify-between text-xs font-mono font-medium animate-fadeIn">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600 shrink-0" />
+              <CheckCircle2 className="w-4.5 h-4.5 text-emerald-800 shrink-0" />
               <span>{successMsg}</span>
             </div>
-            <button onClick={() => setSuccessMsg(null)} className="text-emerald-500 hover:text-emerald-700 cursor-pointer">
+            <button onClick={() => setSuccessMsg(null)} className="text-emerald-600 hover:text-emerald-800 cursor-pointer">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -246,10 +246,10 @@ export default function App() {
             <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-xl space-y-6">
               
               <div className="text-center space-y-2">
-                <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center mx-auto border border-indigo-150 shadow-sm">
+                <div className="w-12 h-12 bg-emerald-50 text-emerald-800 rounded-xl flex items-center justify-center mx-auto border border-emerald-150 shadow-sm">
                   <Lock className="w-6 h-6" />
                 </div>
-                <h2 className="font-display font-bold text-slate-800 text-lg uppercase tracking-wide">LOGIN PENGELOLA BWF</h2>
+                <h2 className="font-display font-bold text-emerald-800 text-xl uppercase tracking-wide">LOGIN PENGELOLA BWF</h2>
                 <p className="text-xs text-slate-400 font-mono uppercase tracking-wider">Silakan masuk untuk mengelola skor dan bagan turnamen</p>
               </div>
 
@@ -270,7 +270,7 @@ export default function App() {
                       value={loginUsername}
                       onChange={(e) => setLoginUsername(e.target.value)}
                       placeholder="Masukkan username pengelola"
-                      className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                      className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-800"
                       required
                     />
                   </div>
@@ -285,7 +285,7 @@ export default function App() {
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       placeholder="Masukkan password"
-                      className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                      className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-800"
                       required
                     />
                   </div>
@@ -293,7 +293,7 @@ export default function App() {
 
                 <button
                   type="submit"
-                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-display font-bold text-xs tracking-wider uppercase rounded-xl transition-all shadow-md hover:shadow-indigo-500/20 flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-3 bg-emerald-800 hover:bg-emerald-700 text-white font-display font-bold text-xs tracking-wider uppercase rounded-xl transition-all shadow-md hover:shadow-emerald-800/20 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <LogIn className="w-4 h-4" /> MASUK KE PANEL
                 </button>
@@ -322,11 +322,11 @@ export default function App() {
       <footer className="border-t border-slate-200 bg-white/40 py-6 mt-12 text-center text-xs text-slate-500 font-mono">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-slate-500 text-xs tracking-wide">
-            Copyright © 2026  by Ichrom - 081238888644 - <a href="https://www.instagram.com/ariichroman" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 hover:underline transition-colors underline-offset-2">IG: ariichroman</a>
+            Copyright © 2026  by Ichrom - 081238888644 - <a href="https://www.instagram.com/ariichroman" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-800 hover:underline transition-colors underline-offset-2">IG: ariichroman</a>
           </p>
-          <div className="flex gap-2">
-            <div className="w-8 h-1.5 bg-emerald-500 rounded-full"></div>
-            <div className="w-8 h-1.5 bg-indigo-500 rounded-full"></div>
+          <div className="flex gap-2 text-slate-300">
+            <div className="w-8 h-1.5 bg-emerald-800 rounded-full"></div>
+            <div className="w-8 h-1.5 bg-amber-500 rounded-full"></div>
             <div className="w-8 h-1.5 bg-slate-200 rounded-full"></div>
           </div>
         </div>
