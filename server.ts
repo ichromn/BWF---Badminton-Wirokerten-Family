@@ -56,19 +56,40 @@ function performSeededDraw(selectedPlayers: Player[], size: number): Player[] {
     const playerIndex = seedPattern[i] - 1;
     if (playerIndex < orderedPlayers.length) {
       result[i] = orderedPlayers[playerIndex];
-    } else {
-      result[i] = orderedPlayers[i % orderedPlayers.length] || selectedPlayers[0];
     }
   }
 
   return result;
 }
 
-// Helper to dynamically build bracket nodes and scheduled matches for any tournament size (4, 8, 16, 32, 64)
+// Helper to dynamically build bracket nodes and scheduled matches for any tournament size, supporting arbitrary player counts
 function buildBracketAndMatches(tournamentId: string, drawSize: number, shuffled: Player[], customDate: string) {
   const matches: Match[] = [];
   const brackets: BracketNode[] = [];
   const nowStr = new Date().toISOString();
+
+  // Determine the next power of 2 of shuffled.length (min 4)
+  let actualDrawSize = 4;
+  const pCount = shuffled.length;
+  if (pCount > 32) actualDrawSize = 64;
+  else if (pCount > 16) actualDrawSize = 32;
+  else if (pCount > 8) actualDrawSize = 16;
+  else if (pCount > 4) actualDrawSize = 8;
+  else actualDrawSize = 4;
+
+  // Pad players with "BYE (Free Pass)"
+  const paddedPlayers = [...shuffled];
+  while (paddedPlayers.length < actualDrawSize) {
+    paddedPlayers.push({
+      id: `bye-${Math.random().toString(36).substring(2, 7)}`,
+      name: "BYE (Free Pass)",
+      club: "BWF",
+      matchesPlayed: 0,
+      matchesWon: 0,
+      setsWon: 0,
+      pointsWon: 0
+    });
+  }
 
   const ROUND_CONFIGS = [
     { roundIndex: 0, prefix: 'f', name: 'Final' },
@@ -79,7 +100,7 @@ function buildBracketAndMatches(tournamentId: string, drawSize: number, shuffled
     { roundIndex: 5, prefix: 'x', name: 'Babak 64 Besar' }
   ];
 
-  const totalRounds = Math.log2(drawSize); // e.g. 3 for size 8
+  const totalRounds = Math.log2(actualDrawSize); // e.g. 3 for size 8
 
   // We build rounds from the first round (totalRounds - 1) down to 0 (Final)
   for (let r = totalRounds - 1; r >= 0; r--) {
@@ -95,8 +116,8 @@ function buildBracketAndMatches(tournamentId: string, drawSize: number, shuffled
 
       if (r === totalRounds - 1) {
         // First round has actual players
-        const p1 = shuffled[i * 2];
-        const p2 = shuffled[i * 2 + 1];
+        const p1 = paddedPlayers[i * 2];
+        const p2 = paddedPlayers[i * 2 + 1];
         p1Id = p1?.id || "";
         p2Id = p2?.id || "";
         p1Name = p1?.name || "Belum ada pemain";
@@ -142,6 +163,62 @@ function buildBracketAndMatches(tournamentId: string, drawSize: number, shuffled
 
       matches.push(match);
       brackets.push(bracketNode);
+    }
+  }
+
+  // Local propagation of BYE matches: if a match contains a BYE player, auto-complete and advance the winner
+  for (let r = totalRounds - 1; r >= 0; r--) {
+    const config = ROUND_CONFIGS[r] || { prefix: `b${r}` };
+    const roundMatches = matches.filter(m => m.id.includes(`-${config.prefix}`));
+
+    for (const match of roundMatches) {
+      const hasP1Bye = match.player1Name === "BYE (Free Pass)";
+      const hasP2Bye = match.player2Name === "BYE (Free Pass)";
+
+      if ((hasP1Bye || hasP2Bye) && match.status === 'scheduled') {
+        match.status = 'completed';
+        if (hasP1Bye && hasP2Bye) {
+          match.winnerId = match.player1Id;
+          match.scores = [{ p1: 0, p2: 0 }];
+        } else if (hasP1Bye) {
+          match.winnerId = match.player2Id;
+          match.scores = [{ p1: 0, p2: 21 }, { p1: 0, p2: 21 }];
+        } else {
+          match.winnerId = match.player1Id;
+          match.scores = [{ p1: 21, p2: 0 }, { p1: 21, p2: 0 }];
+        }
+
+        const winnerId = match.winnerId;
+        const winnerName = winnerId === match.player1Id ? match.player1Name : match.player2Name;
+
+        const currentNode = brackets.find(node => node.matchId === match.id);
+        if (currentNode) {
+          currentNode.winnerId = winnerId;
+          if (currentNode.nextMatchId) {
+            const nextNode = brackets.find(node => node.id === currentNode.nextMatchId);
+            if (nextNode) {
+              const matchIndexStr = currentNode.id.replace(/^\D+/g, '');
+              const matchIndexVal = parseInt(matchIndexStr, 10) || 1;
+              const isTopBranch = matchIndexVal % 2 === 1;
+
+              const nextMatch = matches.find(m => m.id === nextNode.matchId);
+              if (nextMatch) {
+                if (isTopBranch) {
+                  nextMatch.player1Id = winnerId;
+                  nextMatch.player1Name = winnerName;
+                  nextNode.player1Id = winnerId;
+                  nextNode.player1Name = winnerName;
+                } else {
+                  nextMatch.player2Id = winnerId;
+                  nextMatch.player2Name = winnerName;
+                  nextNode.player2Id = winnerId;
+                  nextNode.player2Name = winnerName;
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 
@@ -203,6 +280,8 @@ let state = {
   ] as SpectatorComment[],
   youtubeUrl: "https://www.youtube.com/embed/Y-Ony4RveD4",
   registrationClosed: false,
+  appTitle: "BWF TOURNAMENT",
+  appLogo: "🏆",
 
   // Getter/setter for backward compatibility with existing server.ts match-managing code
   get matches() {
@@ -276,6 +355,8 @@ async function saveStateToOnlineDb() {
       comments: state.comments,
       youtubeUrl: state.youtubeUrl,
       registrationClosed: !!state.registrationClosed,
+      appTitle: state.appTitle || "BWF TOURNAMENT",
+      appLogo: state.appLogo || "🏆",
       updatedAt: nowStr
     };
     const cleanedState = JSON.parse(JSON.stringify(stateToSave));
@@ -304,6 +385,8 @@ async function loadStateFromOnlineDb() {
       if (data.comments) state.comments = data.comments;
       if (data.youtubeUrl) state.youtubeUrl = data.youtubeUrl;
       if (data.registrationClosed !== undefined) state.registrationClosed = !!data.registrationClosed;
+      if (data.appTitle !== undefined) state.appTitle = data.appTitle;
+      if (data.appLogo !== undefined) state.appLogo = data.appLogo;
       lastSyncTime = data.updatedAt || new Date().toISOString();
       console.log("📥 State loaded successfully from Firestore online database!");
     } else {
@@ -357,7 +440,9 @@ function advanceWinnerInBracket(completedMatch: Match) {
       // Let's do it based on node ID matching:
       // If our current node ID is 'q1' or 'q3' or 's1' -> it feeds player 1 of the next match.
       // If our current node ID is 'q2' or 'q4' or 's2' -> it feeds player 2 of the next match.
-      const isTopBranch = ['q1', 'q3', 's1'].includes(currentNode.id);
+      const matchIndexStr = currentNode.id.replace(/^\D+/g, '');
+      const matchIndexVal = parseInt(matchIndexStr, 10) || 1;
+      const isTopBranch = matchIndexVal % 2 === 1;
       
       // Find the actual next match object
       const nextMatchIndex = state.matches.findIndex(m => m.id === nextNode.matchId);
@@ -592,11 +677,20 @@ async function startServer() {
   // API Routes: Tournament Draw (Random Match Generation)
   app.post("/api/tournament/draw", (req, res) => {
     const { playerIds } = req.body; // Array of player IDs
-    const size = playerIds ? playerIds.length : 0;
-    
-    if (!playerIds || ![4, 8, 16, 32, 64].includes(size)) {
-      return res.status(400).json({ error: "Harap pilih tepat 4, 8, 16, 32, atau 64 pemain untuk diundi." });
+    if (!playerIds || !Array.isArray(playerIds) || playerIds.length < 2) {
+      return res.status(400).json({ error: "Harap pilih minimal 2 pemain untuk diundi." });
     }
+    if (playerIds.length > 64) {
+      return res.status(400).json({ error: "Jumlah pemain maksimal untuk diundi adalah 64." });
+    }
+
+    const pCount = playerIds.length;
+    let bracketSize = 4;
+    if (pCount > 32) bracketSize = 64;
+    else if (pCount > 16) bracketSize = 32;
+    else if (pCount > 8) bracketSize = 16;
+    else if (pCount > 4) bracketSize = 8;
+    else bracketSize = 4;
 
     // Filter players that actually exist
     const selectedPlayers = state.players.filter(p => playerIds.includes(p.id));
@@ -605,12 +699,13 @@ async function startServer() {
     }
 
     // Perform seeded draw to place top seeds top-down and separate them
-    const shuffled = performSeededDraw(selectedPlayers, size);
+    const shuffled = performSeededDraw(selectedPlayers, bracketSize);
 
     // Update active tournament playerIds
     const activeT = state.tournaments.find(t => t.id === state.activeTournamentId);
     if (activeT) {
       activeT.playerIds = playerIds;
+      activeT.drawSize = bracketSize;
     }
 
     // Clear old match and bracket state
@@ -620,9 +715,9 @@ async function startServer() {
     const nowStr = new Date().toISOString();
     const defaultDateStr = nowStr.split('T')[0];
 
-    addNotification(`Pengundian turnamen acak dimulai dengan ${shuffled.length} pemain!`, 'system');
+    addNotification(`Pengundian turnamen acak dimulai dengan ${playerIds.length} pemain (Braket ${bracketSize})!`, 'system');
 
-    const { matches, brackets } = buildBracketAndMatches("random", size, shuffled, defaultDateStr);
+    const { matches, brackets } = buildBracketAndMatches("random", bracketSize, shuffled, defaultDateStr);
     
     state.matches = matches;
     state.brackets = brackets;
@@ -666,6 +761,8 @@ async function startServer() {
       comments: state.comments,
       youtubeUrl: state.youtubeUrl,
       registrationClosed: !!state.registrationClosed,
+      appTitle: state.appTitle || "BWF TOURNAMENT",
+      appLogo: state.appLogo || "🏆",
       dbStatus: {
         configured: !!getDb(),
         lastSync: lastSyncTime,
@@ -681,6 +778,16 @@ async function startServer() {
     addNotification(`📋 Pendaftaran turnamen telah ${closed ? 'DITUTUP' : 'DIBUKA'} oleh pengelola`, 'system');
     saveStateToOnlineDb();
     res.json({ success: true, registrationClosed: state.registrationClosed });
+  });
+
+  // API Routes: Update app branding (logo & title)
+  app.post("/api/app-branding", (req, res) => {
+    const { title, logo } = req.body;
+    if (title !== undefined) state.appTitle = title;
+    if (logo !== undefined) state.appLogo = logo;
+    addNotification(`🎨 Identitas Turnamen diperbarui: "${title || state.appTitle}"`, 'system');
+    saveStateToOnlineDb();
+    res.json({ success: true, appTitle: state.appTitle, appLogo: state.appLogo });
   });
 
   // API Routes: Update custom running text
@@ -749,13 +856,13 @@ async function startServer() {
     }
 
     const pIds = playerIds || [];
-    if (pIds.length > 0 && pIds.length !== size) {
-      return res.status(400).json({ error: `Harap pilih tepat ${size} atlet untuk langsung mengundi, atau kosongkan jika ingin menyusun pemain belakangan.` });
+    if (pIds.length > 0 && pIds.length > size) {
+      return res.status(400).json({ error: `Jumlah pemain tidak boleh melebihi ukuran braket (${size} atlet).` });
     }
 
     const tDate = customDate || new Date().toISOString().split('T')[0];
     const newTournamentId = `t-${generateId()}`;
-    const hasPlayers = pIds.length === size;
+    const hasPlayers = pIds.length > 0;
 
     const newTournament: Tournament = {
       id: newTournamentId,
@@ -783,7 +890,7 @@ async function startServer() {
       const { matches, brackets } = buildBracketAndMatches(newTournamentId, size, shuffled, tDate);
       newTournament.matches = matches;
       newTournament.brackets = brackets;
-      addNotification(`🏆 Turnamen baru dibuat: ${name} (${size} Atlet) dan langsung diaktifkan!`, 'system');
+      addNotification(`🏆 Turnamen baru dibuat: ${name} dengan ${pIds.length} pemain (Braket ${size} Atlet) dan langsung diaktifkan!`, 'system');
     } else {
       addNotification(`🏆 Turnamen baru dibuat: ${name} (Braket Kosong, susun pemain belakangan)`, 'system');
     }
@@ -1253,6 +1360,8 @@ async function startServer() {
       { id: "c-1", author: "Coach Herry IP", text: "Ginting bermain sangat agresif hari ini. Smes menyilangnya mematikan!", timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }), avatarColor: "from-emerald-500 to-teal-500" }
     ];
     state.youtubeUrl = "https://www.youtube.com/embed/Y-Ony4RveD4";
+    state.appTitle = "BWF TOURNAMENT";
+    state.appLogo = "🏆";
     addNotification("Sistem berhasil direset ke pengaturan awal.", 'system');
     res.json({ success: true, message: "Sistem berhasil direset." });
   });

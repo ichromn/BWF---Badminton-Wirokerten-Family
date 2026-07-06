@@ -34,7 +34,8 @@ import {
   Database,
   Cloud,
   Lock,
-  Unlock
+  Unlock,
+  Settings
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -92,6 +93,10 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
   // YouTube Embed Url Custom State
   const [customYoutubeUrl, setCustomYoutubeUrl] = useState(serverState.youtubeUrl || '');
 
+  // App Title & Logo Custom State
+  const [customAppTitle, setCustomAppTitle] = useState(serverState.appTitle || 'BWF TOURNAMENT');
+  const [customAppLogo, setCustomAppLogo] = useState(serverState.appLogo || '🏆');
+
   useEffect(() => {
     if (serverState.runningText !== undefined) {
       setCustomRunningText(serverState.runningText);
@@ -103,6 +108,18 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
       setCustomYoutubeUrl(serverState.youtubeUrl);
     }
   }, [serverState.youtubeUrl]);
+
+  useEffect(() => {
+    if (serverState.appTitle !== undefined) {
+      setCustomAppTitle(serverState.appTitle);
+    }
+  }, [serverState.appTitle]);
+
+  useEffect(() => {
+    if (serverState.appLogo !== undefined) {
+      setCustomAppLogo(serverState.appLogo);
+    }
+  }, [serverState.appLogo]);
 
   // Cloud Database Manual Sync State & Handler
   const [isSyncing, setIsSyncing] = useState(false);
@@ -162,8 +179,8 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
       setError("Nama turnamen wajib diisi.");
       return;
     }
-    if (newTourneyPlayers.length > 0 && newTourneyPlayers.length !== newTourneySize) {
-      setError(`Harap pilih tepat ${newTourneySize} atlet untuk langsung mengundi, atau kosongkan (jangan pilih atlet) jika ingin menyusun pemain belakangan.`);
+    if (newTourneyPlayers.length > 0 && newTourneyPlayers.length > newTourneySize) {
+      setError(`Jumlah pemain tidak boleh melebihi ukuran braket (${newTourneySize} atlet).`);
       return;
     }
 
@@ -414,8 +431,12 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
 
   // Perform Random Tournament Draw
   const handleDrawTournament = async () => {
-    if (selectedPlayerIds.length !== drawSize) {
-      setError(`Harap pilih tepat ${drawSize} pemain untuk melakukan pengundian.`);
+    if (selectedPlayerIds.length > drawSize) {
+      setError(`Jumlah pemain terpilih (${selectedPlayerIds.length}) melebihi ukuran braket (${drawSize}).`);
+      return;
+    }
+    if (selectedPlayerIds.length < 2) {
+      setError(`Harap pilih minimal 2 pemain untuk melakukan pengundian.`);
       return;
     }
 
@@ -713,7 +734,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
 
             <button
               type="submit"
-              disabled={isCreatingTourney || (newTourneyPlayers.length > 0 && newTourneyPlayers.length !== newTourneySize)}
+              disabled={isCreatingTourney || (newTourneyPlayers.length > 0 && newTourneyPlayers.length > newTourneySize)}
               className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-200 disabled:text-slate-400 text-white font-display font-bold text-xs uppercase tracking-wider py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer border-none"
             >
               <Trophy className="w-4 h-4" /> {isCreatingTourney ? 'MEMPROSES...' : 'BUAT & AKTIFKAN TURNAMEN BARU'}
@@ -1238,7 +1259,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
             <button
               type="button"
               onClick={handleDrawTournament}
-              disabled={isDrawing || selectedPlayerIds.length !== drawSize}
+              disabled={isDrawing || selectedPlayerIds.length > drawSize || selectedPlayerIds.length < 2}
               className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-display font-bold text-xs uppercase tracking-wider py-3 px-4 rounded-lg shadow-[0_2px_8px_rgba(99,102,241,0.25)] transition-all flex items-center justify-center gap-2 cursor-pointer border-none"
             >
               <Shuffle className="w-4 h-4" />
@@ -1322,6 +1343,79 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
                   <span>{serverState.registrationClosed ? 'Buka Pendaftaran' : 'Tutup Pendaftaran'}</span>
                 </>
               )}
+            </button>
+          </div>
+        </div>
+
+        {/* IDENTITAS APLIKASI & BRANDING EDITOR CARD */}
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4 animate-fadeIn" id="app-branding-editor-card">
+          <div className="flex items-center gap-2">
+            <Settings className="w-5 h-5 text-indigo-600 animate-pulse" />
+            <div>
+              <h4 className="text-xs font-sans font-bold text-slate-800 uppercase tracking-wider">Atur Logo & Judul Turnamen</h4>
+              <p className="text-[10px] text-slate-400 font-mono">Ubah teks nama turnamen dan ikon/logo di header atas</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Judul Turnamen (Header)</label>
+              <input
+                type="text"
+                value={customAppTitle}
+                onChange={(e) => setCustomAppTitle(e.target.value)}
+                placeholder="Contoh: BWF TOURNAMENT"
+                className="w-full text-xs font-sans p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono text-slate-800 outline-none"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Logo Turnamen (Emoji atau Teks Singkat)</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  maxLength={10}
+                  value={customAppLogo}
+                  onChange={(e) => setCustomAppLogo(e.target.value)}
+                  placeholder="Contoh: 🏆 atau 🏸"
+                  className="w-full text-xs font-sans p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono text-slate-800 outline-none"
+                />
+                <div className="flex gap-1">
+                  {['🏆', '🏸', '🥇', '🔥'].map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => setCustomAppLogo(emoji)}
+                      className="p-2 border border-slate-200 hover:bg-slate-50 rounded-lg text-sm transition-colors cursor-pointer"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end pt-1">
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/app-branding', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: customAppTitle, logo: customAppLogo })
+                  });
+                  if (res.ok) {
+                    setSuccess("Identitas turnamen (Logo & Judul) berhasil diperbarui!");
+                    onRefresh();
+                  } else {
+                    throw new Error("Gagal memperbarui identitas.");
+                  }
+                } catch (err: any) {
+                  setError(err.message);
+                }
+              }}
+              className="bg-indigo-600 hover:bg-indigo-500 font-mono font-bold text-[10px] py-1.5 px-4 rounded-lg transition-all border-none cursor-pointer shadow-sm text-white uppercase tracking-wide"
+            >
+              Simpan Identitas
             </button>
           </div>
         </div>

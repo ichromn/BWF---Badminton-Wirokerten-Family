@@ -62,19 +62,40 @@ function performSeededDraw(selectedPlayers: Player[], size: number): Player[] {
     const playerIndex = seedPattern[i] - 1;
     if (playerIndex < orderedPlayers.length) {
       result[i] = orderedPlayers[playerIndex];
-    } else {
-      result[i] = orderedPlayers[i % orderedPlayers.length] || selectedPlayers[0];
     }
   }
 
   return result;
 }
 
-// Helper to dynamically build bracket nodes and scheduled matches for any tournament size (4, 8, 16, 32, 64)
+// Helper to dynamically build bracket nodes and scheduled matches for any tournament size, supporting arbitrary player counts
 function buildBracketAndMatches(tournamentId: string, drawSize: number, shuffled: Player[], customDate: string) {
   const matches: Match[] = [];
   const brackets: BracketNode[] = [];
   const nowStr = new Date().toISOString();
+
+  // Determine the next power of 2 of shuffled.length (min 4)
+  let actualDrawSize = 4;
+  const pCount = shuffled.length;
+  if (pCount > 32) actualDrawSize = 64;
+  else if (pCount > 16) actualDrawSize = 32;
+  else if (pCount > 8) actualDrawSize = 16;
+  else if (pCount > 4) actualDrawSize = 8;
+  else actualDrawSize = 4;
+
+  // Pad players with "BYE (Free Pass)"
+  const paddedPlayers = [...shuffled];
+  while (paddedPlayers.length < actualDrawSize) {
+    paddedPlayers.push({
+      id: `bye-${Math.random().toString(36).substring(2, 7)}`,
+      name: "BYE (Free Pass)",
+      club: "BWF",
+      matchesPlayed: 0,
+      matchesWon: 0,
+      setsWon: 0,
+      pointsWon: 0
+    });
+  }
 
   const ROUND_CONFIGS = [
     { roundIndex: 0, prefix: 'f', name: 'Final' },
@@ -85,8 +106,9 @@ function buildBracketAndMatches(tournamentId: string, drawSize: number, shuffled
     { roundIndex: 5, prefix: 'x', name: 'Babak 64 Besar' }
   ];
 
-  const totalRounds = Math.log2(drawSize);
+  const totalRounds = Math.log2(actualDrawSize); // e.g. 3 for size 8
 
+  // We build rounds from the first round (totalRounds - 1) down to 0 (Final)
   for (let r = totalRounds - 1; r >= 0; r--) {
     const numMatches = Math.pow(2, r);
     const config = ROUND_CONFIGS[r] || { roundIndex: r, prefix: `b${r}`, name: `Babak ${Math.pow(2, r + 1)} Besar` };
@@ -99,13 +121,15 @@ function buildBracketAndMatches(tournamentId: string, drawSize: number, shuffled
       let p2Name = "";
 
       if (r === totalRounds - 1) {
-        const p1 = shuffled[i * 2];
-        const p2 = shuffled[i * 2 + 1];
+        // First round has actual players
+        const p1 = paddedPlayers[i * 2];
+        const p2 = paddedPlayers[i * 2 + 1];
         p1Id = p1?.id || "";
         p2Id = p2?.id || "";
         p1Name = p1?.name || "Belum ada pemain";
         p2Name = p2?.name || "Belum ada pemain";
       } else {
+        // Subsequent rounds have "Pemenang [Previous Round Prefix][Index]"
         const prevConfig = ROUND_CONFIGS[r + 1] || { prefix: `b${r + 1}` };
         const prevPrefix = prevConfig.prefix.toUpperCase();
         p1Name = `Pemenang ${prevPrefix}${i * 2 + 1}`;
@@ -148,6 +172,62 @@ function buildBracketAndMatches(tournamentId: string, drawSize: number, shuffled
     }
   }
 
+  // Local propagation of BYE matches: if a match contains a BYE player, auto-complete and advance the winner
+  for (let r = totalRounds - 1; r >= 0; r--) {
+    const config = ROUND_CONFIGS[r] || { prefix: `b${r}` };
+    const roundMatches = matches.filter(m => m.id.includes(`-${config.prefix}`));
+
+    for (const match of roundMatches) {
+      const hasP1Bye = match.player1Name === "BYE (Free Pass)";
+      const hasP2Bye = match.player2Name === "BYE (Free Pass)";
+
+      if ((hasP1Bye || hasP2Bye) && match.status === 'scheduled') {
+        match.status = 'completed';
+        if (hasP1Bye && hasP2Bye) {
+          match.winnerId = match.player1Id;
+          match.scores = [{ p1: 0, p2: 0 }];
+        } else if (hasP1Bye) {
+          match.winnerId = match.player2Id;
+          match.scores = [{ p1: 0, p2: 21 }, { p1: 0, p2: 21 }];
+        } else {
+          match.winnerId = match.player1Id;
+          match.scores = [{ p1: 21, p2: 0 }, { p1: 21, p2: 0 }];
+        }
+
+        const winnerId = match.winnerId;
+        const winnerName = winnerId === match.player1Id ? match.player1Name : match.player2Name;
+
+        const currentNode = brackets.find(node => node.matchId === match.id);
+        if (currentNode) {
+          currentNode.winnerId = winnerId;
+          if (currentNode.nextMatchId) {
+            const nextNode = brackets.find(node => node.id === currentNode.nextMatchId);
+            if (nextNode) {
+              const matchIndexStr = currentNode.id.replace(/^\D+/g, '');
+              const matchIndexVal = parseInt(matchIndexStr, 10) || 1;
+              const isTopBranch = matchIndexVal % 2 === 1;
+
+              const nextMatch = matches.find(m => m.id === nextNode.matchId);
+              if (nextMatch) {
+                if (isTopBranch) {
+                  nextMatch.player1Id = winnerId;
+                  nextMatch.player1Name = winnerName;
+                  nextNode.player1Id = winnerId;
+                  nextNode.player1Name = winnerName;
+                } else {
+                  nextMatch.player2Id = winnerId;
+                  nextMatch.player2Name = winnerName;
+                  nextNode.player2Id = winnerId;
+                  nextNode.player2Name = winnerName;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   return { matches, brackets };
 }
 
@@ -180,6 +260,8 @@ interface LocalState {
   comments: SpectatorComment[];
   youtubeUrl: string;
   registrationClosed?: boolean;
+  appTitle?: string;
+  appLogo?: string;
 }
 
 function getLocalState(): LocalState {
@@ -203,7 +285,9 @@ function getLocalState(): LocalState {
       { id: "c-2", author: "Budi_Lover88", text: "Wah seru sekali pertandingannya! Ayo Jojo kejar poinnya!", timestamp: new Date(Date.now() - 150000).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }), avatarColor: "from-indigo-500 to-purple-500" }
     ],
     youtubeUrl: "https://www.youtube.com/embed/Y-Ony4RveD4",
-    registrationClosed: false
+    registrationClosed: false,
+    appTitle: "BWF TOURNAMENT",
+    appLogo: "🏆"
   };
   
   defaultState.tournaments = [generateDefaultTournament(defaultState.players)];
@@ -255,6 +339,8 @@ async function syncFromOnlineDb() {
         comments: onlineState.comments || localState.comments,
         youtubeUrl: onlineState.youtubeUrl || localState.youtubeUrl,
         registrationClosed: onlineState.registrationClosed !== undefined ? !!onlineState.registrationClosed : !!localState.registrationClosed,
+        appTitle: onlineState.appTitle || localState.appTitle,
+        appLogo: onlineState.appLogo || localState.appLogo,
       };
 
       saveLocalStateOnly(mergedState);
@@ -285,6 +371,8 @@ async function syncToOnlineDb(state: LocalState) {
       comments: state.comments,
       youtubeUrl: state.youtubeUrl,
       registrationClosed: !!state.registrationClosed,
+      appTitle: state.appTitle || "BWF TOURNAMENT",
+      appLogo: state.appLogo || "🏆",
       updatedAt: new Date().toISOString()
     };
     const cleanedState = JSON.parse(JSON.stringify(stateToSave));
@@ -332,7 +420,9 @@ function advanceWinnerInBracket(state: LocalState, completedMatch: Match, active
   if (currentNode.nextMatchId) {
     const nextNode = activeTournament.brackets.find(node => node.id === currentNode.nextMatchId);
     if (nextNode) {
-      const isTopBranch = ['q1', 'q3', 's1'].includes(currentNode.id);
+      const matchIndexStr = currentNode.id.replace(/^\D+/g, '');
+      const matchIndexVal = parseInt(matchIndexStr, 10) || 1;
+      const isTopBranch = matchIndexVal % 2 === 1;
       const nextMatchIndex = activeTournament.matches.findIndex(m => m.id === nextNode.matchId);
       
       if (nextMatchIndex !== -1) {
@@ -531,6 +621,8 @@ function handleMockRequest(urlStr: string, init?: RequestInit): Response {
         comments: state.comments,
         youtubeUrl: state.youtubeUrl,
         registrationClosed: !!state.registrationClosed,
+        appTitle: state.appTitle || "BWF TOURNAMENT",
+        appLogo: state.appLogo || "🏆",
         dbStatus: {
           configured: !!config,
           lastSync: new Date().toISOString(),
@@ -1224,6 +1316,16 @@ function handleMockRequest(urlStr: string, init?: RequestInit): Response {
       addNotification(state, `📋 Pendaftaran turnamen telah ${closed ? 'DITUTUP' : 'DIBUKA'} oleh pengelola`, 'system');
       saveLocalState(state);
       return createJsonResponse({ success: true, registrationClosed: state.registrationClosed });
+    }
+
+    // POST /api/app-branding
+    if (path === '/api/app-branding' && method === 'POST') {
+      const { title, logo } = bodyData;
+      if (title !== undefined) state.appTitle = title;
+      if (logo !== undefined) state.appLogo = logo;
+      addNotification(state, `🎨 Identitas Turnamen diperbarui: "${title || state.appTitle}"`, 'system');
+      saveLocalState(state);
+      return createJsonResponse({ success: true, appTitle: state.appTitle, appLogo: state.appLogo });
     }
 
     // 20. POST /api/youtube-url

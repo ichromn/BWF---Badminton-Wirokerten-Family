@@ -49,7 +49,7 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
   const [scheduleRoundFilter, setScheduleRoundFilter] = useState<string>('all');
 
   // Sidebar Tabs & Commentary State
-  const [sidebarTab, setSidebarTab] = useState<'logs' | 'comments'>('logs');
+  const [sidebarTab, setSidebarTab] = useState<'logs' | 'comments'>('comments');
   const [commentNickname, setCommentNickname] = useState('');
   const [commentText, setCommentText] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);

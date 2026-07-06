@@ -117,12 +117,18 @@ export default function App() {
           
           {/* Logo brand - SmashControl theme */}
           <div className="flex items-center gap-3 font-display">
-            <div className="p-2 bg-emerald-500 rounded-lg text-white shadow-[0_2px_10px_rgba(16,185,129,0.3)] flex items-center justify-center">
-              <Trophy className="w-5 h-5 fill-white stroke-none" />
+            <div className="p-2 bg-emerald-500 rounded-lg text-white shadow-[0_2px_10px_rgba(16,185,129,0.3)] flex items-center justify-center font-bold text-sm min-w-[36px] h-9">
+              {state?.appLogo ? (
+                <span className="text-base select-none">{state.appLogo}</span>
+              ) : (
+                <Trophy className="w-5 h-5 fill-white stroke-none" />
+              )}
             </div>
             <div>
               <h1 className="text-xl font-black tracking-tighter uppercase italic text-slate-900 leading-none">
-                BWF<span className="text-emerald-500 underline decoration-2 underline-offset-4"> TOURNAMENT</span>
+                {state?.appTitle ? state.appTitle : (
+                  <>BWF<span className="text-emerald-500 underline decoration-2 underline-offset-4"> TOURNAMENT</span></>
+                )}
               </h1>
               <span className="text-[9px] text-slate-500 uppercase tracking-widest font-mono font-bold block mt-1">by Ichromn</span>
             </div>
