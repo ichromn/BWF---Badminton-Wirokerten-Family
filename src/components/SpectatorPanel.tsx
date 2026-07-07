@@ -35,6 +35,86 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
+interface AnimatedDigitalScoreProps {
+  score: number;
+  colorClass?: string;
+  glowColor?: string;
+  pulseColor?: string;
+}
+
+function AnimatedDigitalScore({ 
+  score, 
+  colorClass = "text-emerald-400", 
+  glowColor = "rgba(16,185,129,0.35)",
+  pulseColor = "rgba(16,185,129,0.5)"
+}: AnimatedDigitalScoreProps) {
+  const [pulse, setPulse] = useState(false);
+  const prevScoreRef = React.useRef(score);
+
+  useEffect(() => {
+    if (score > prevScoreRef.current) {
+      setPulse(true);
+      const timer = setTimeout(() => setPulse(false), 800);
+      return () => clearTimeout(timer);
+    }
+    prevScoreRef.current = score;
+  }, [score]);
+
+  return (
+    <motion.div 
+      animate={pulse ? {
+        scale: [1, 1.1, 1],
+        boxShadow: [
+          `inset 0 4px 12px rgba(0,0,0,0.9), 0 0 20px ${glowColor}`,
+          `inset 0 4px 12px rgba(0,0,0,0.9), 0 0 35px ${pulseColor}`,
+          `inset 0 4px 12px rgba(0,0,0,0.9), 0 0 20px ${glowColor}`
+        ]
+      } : {}}
+      transition={{ duration: 0.6 }}
+      className="relative overflow-hidden h-24 w-24 md:h-28 md:w-28 flex items-center justify-center bg-slate-950 rounded-2xl border border-slate-800 shadow-[inset_0_4px_12px_rgba(0,0,0,0.9),_0_0_20px_var(--glow-color)]"
+      style={{ '--glow-color': glowColor } as any}
+    >
+      {/* LED matrix background lines */}
+      <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.05)_1.2px,transparent_1.2px)] [background-size:6px_6px] pointer-events-none opacity-40 z-10" />
+      
+      {/* Glossy glare highlight */}
+      <div className="absolute top-0 inset-x-0 h-[40%] bg-gradient-to-b from-white/10 via-white/5 to-transparent pointer-events-none z-10 rounded-t-2xl" />
+      
+      {/* Horizontal grid line across middle of a flip display */}
+      <div className="absolute inset-x-0 top-1/2 h-[1px] bg-slate-900/60 z-20" />
+
+      {/* Behind background flash */}
+      {pulse && (
+        <motion.div 
+          initial={{ opacity: 0.6 }}
+          animate={{ opacity: 0 }}
+          transition={{ duration: 0.6 }}
+          className="absolute inset-0 pointer-events-none opacity-0 z-0"
+          style={{ backgroundColor: pulseColor }}
+        />
+      )}
+
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.span
+          key={score}
+          initial={{ y: 40, opacity: 0, filter: "blur(2px)" }}
+          animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
+          exit={{ y: -40, opacity: 0, filter: "blur(2px)" }}
+          transition={{ 
+            type: "spring", 
+            stiffness: 400, 
+            damping: 20,
+            mass: 0.8
+          }}
+          className={`font-mono text-5xl md:text-6xl font-extrabold ${colorClass} tracking-tighter filter drop-shadow-[0_0_8px_currentColor] z-10 select-none block`}
+        >
+          {score}
+        </motion.span>
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
 interface SpectatorPanelProps {
   serverState: ServerState;
 }
@@ -323,15 +403,12 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
 
             {/* Shrunk Score Display with animation */}
             <div className="my-2">
-              <motion.div 
-                key={currentScore.p1}
-                initial={{ scale: 0.8, opacity: 0.5 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-                className="text-6xl font-black font-mono text-slate-900 tracking-tighter filter drop-shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
-              >
-                {currentScore.p1}
-              </motion.div>
+              <AnimatedDigitalScore 
+                score={currentScore.p1} 
+                colorClass="text-emerald-400" 
+                glowColor="rgba(16,185,129,0.3)" 
+                pulseColor="rgba(16,185,129,0.6)" 
+              />
             </div>
 
             {/* Historical game markers */}
@@ -373,15 +450,12 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
 
             {/* Shrunk Score Display with animation */}
             <div className="my-2">
-              <motion.div 
-                key={currentScore.p2}
-                initial={{ scale: 0.8, opacity: 0.5 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-                className="text-6xl font-black font-mono text-slate-900 tracking-tighter filter drop-shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
-              >
-                {currentScore.p2}
-              </motion.div>
+              <AnimatedDigitalScore 
+                score={currentScore.p2} 
+                colorClass="text-amber-400" 
+                glowColor="rgba(245,158,11,0.3)" 
+                pulseColor="rgba(245,158,11,0.6)" 
+              />
             </div>
 
             {/* Historical game markers */}
