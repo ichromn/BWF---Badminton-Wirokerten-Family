@@ -130,7 +130,7 @@ export default function App() {
                   <>BWF<span className="text-amber-500 underline decoration-2 underline-offset-4"> TOURNAMENT</span></>
                 )}
               </h1>
-              <span className="text-[9px] text-slate-500 uppercase tracking-widest font-mono font-bold block mt-1">by Ichromn</span>
+              <span className="text-[9px] text-slate-500 uppercase tracking-widest font-mono font-bold block mt-1">Badminton Wirokerten Family</span>
             </div>
           </div>
 
@@ -322,7 +322,7 @@ export default function App() {
       <footer className="border-t border-slate-200 bg-white/40 py-6 mt-12 text-center text-xs text-slate-500 font-mono">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-slate-500 text-xs tracking-wide">
-            Copyright © 2026  by Ichrom - 081238888644 - <a href="https://www.instagram.com/ariichroman" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-800 hover:underline transition-colors underline-offset-2">IG: ariichroman</a>
+            Copyright © 2026 Badminton Wirokerten Family - 081238888644 - <a href="https://www.instagram.com/ariichroman" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-800 hover:underline transition-colors underline-offset-2">IG: ariichroman</a>
           </p>
           <div className="flex gap-2 text-slate-300">
             <div className="w-8 h-1.5 bg-emerald-800 rounded-full"></div>

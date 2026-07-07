@@ -279,7 +279,7 @@ function getLocalState(): LocalState {
     tournaments: [],
     activeTournamentId: DEFAULT_TOURNAMENT_ID,
     notifications: JSON.parse(JSON.stringify(DEFAULT_NOTIFICATIONS)),
-    runningText: "Selamat Datang di Turnamen Bulutangkis Resmi BWF by Ichromn! Saksikan siaran langsung pertandingan real-time dan sampaikan komentar Anda di sini.",
+    runningText: "Selamat Datang di Turnamen Bulutangkis Resmi Badminton Wirokerten Family! Saksikan siaran langsung pertandingan real-time dan sampaikan komentar Anda di sini.",
     comments: [
       { id: "c-1", author: "Coach Herry IP", text: "Ginting bermain sangat agresif hari ini. Smes menyilangnya mematikan!", timestamp: new Date(Date.now() - 300000).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }), avatarColor: "from-emerald-500 to-teal-500" },
       { id: "c-2", author: "Budi_Lover88", text: "Wah seru sekali pertandingannya! Ayo Jojo kejar poinnya!", timestamp: new Date(Date.now() - 150000).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }), avatarColor: "from-indigo-500 to-purple-500" }
