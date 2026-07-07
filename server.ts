@@ -17,6 +17,7 @@ import {
   ServerState,
   MatchScore,
   Tournament,
+  TournamentGroup,
   SpectatorComment
 } from "./src/types.js";
 
@@ -60,6 +61,89 @@ function performSeededDraw(selectedPlayers: Player[], size: number): Player[] {
   }
 
   return result;
+}
+
+// Helper to distribute players to groups and generate round-robin matches
+function buildGroupMatchesAndGroups(tournamentId: string, playerIds: string[], groupCount: number, customDate: string) {
+  const selectedPlayers = state.players.filter(p => playerIds.includes(p.id));
+  
+  // Sort seeded players first
+  const seeded = selectedPlayers.filter(p => p.seed !== undefined && p.seed !== null && p.seed > 0);
+  seeded.sort((a, b) => (a.seed || 0) - (b.seed || 0));
+  const unseeded = selectedPlayers.filter(p => p.seed === undefined || p.seed === null || p.seed <= 0);
+  const shuffledUnseeded = [...unseeded].sort(() => Math.random() - 0.5);
+  const allOrdered = [...seeded, ...shuffledUnseeded];
+
+  const G = Math.min(groupCount || 1, 4);
+  const groups: TournamentGroup[] = [];
+  const groupNames = ["Grup A", "Grup B", "Grup C", "Grup D"];
+
+  for (let g = 0; g < G; g++) {
+    groups.push({
+      id: String.fromCharCode(65 + g),
+      name: groupNames[g],
+      playerIds: []
+    });
+  }
+
+  // Distribute using snake pattern
+  let goingForward = true;
+  let currentGIdx = 0;
+  for (let i = 0; i < allOrdered.length; i++) {
+    groups[currentGIdx].playerIds.push(allOrdered[i].id);
+    
+    if (G > 1) {
+      if (goingForward) {
+        if (currentGIdx === G - 1) {
+          goingForward = false;
+        } else {
+          currentGIdx++;
+        }
+      } else {
+        if (currentGIdx === 0) {
+          goingForward = true;
+        } else {
+          currentGIdx--;
+        }
+      }
+    }
+  }
+
+  // Generate round-robin matches for each group
+  const matches: Match[] = [];
+  const nowStr = new Date().toISOString();
+
+  for (const group of groups) {
+    const gPlayers = selectedPlayers.filter(p => group.playerIds.includes(p.id));
+    const numPlayers = gPlayers.length;
+    let matchIndex = 1;
+
+    for (let i = 0; i < numPlayers; i++) {
+      for (let j = i + 1; j < numPlayers; j++) {
+        const p1 = gPlayers[i];
+        const p2 = gPlayers[j];
+
+        const matchId = `m-${tournamentId}-g-${group.id}-${matchIndex++}`;
+        const match: Match = {
+          id: matchId,
+          player1Id: p1.id,
+          player2Id: p2.id,
+          player1Name: p1.name,
+          player2Name: p2.name,
+          status: 'scheduled',
+          scores: [{ p1: 0, p2: 0 }],
+          currentSet: 1,
+          round: group.name, // e.g. "Grup A"
+          createdAt: nowStr,
+          updatedAt: nowStr,
+          customDate: customDate
+        };
+        matches.push(match);
+      }
+    }
+  }
+
+  return { groups, matches };
 }
 
 // Helper to dynamically build bracket nodes and scheduled matches for any tournament size, supporting arbitrary player counts
@@ -698,15 +782,8 @@ async function startServer() {
       return res.status(400).json({ error: "Beberapa pemain terpilih tidak ditemukan." });
     }
 
-    // Perform seeded draw to place top seeds top-down and separate them
-    const shuffled = performSeededDraw(selectedPlayers, bracketSize);
-
-    // Update active tournament playerIds
     const activeT = state.tournaments.find(t => t.id === state.activeTournamentId);
-    if (activeT) {
-      activeT.playerIds = playerIds;
-      activeT.drawSize = bracketSize;
-    }
+    const isGroupType = activeT ? activeT.type === 'group' : false;
 
     // Clear old match and bracket state
     state.matches = [];
@@ -715,17 +792,50 @@ async function startServer() {
     const nowStr = new Date().toISOString();
     const defaultDateStr = nowStr.split('T')[0];
 
-    addNotification(`Pengundian turnamen acak dimulai dengan ${playerIds.length} pemain (Braket ${bracketSize})!`, 'system');
+    if (isGroupType && activeT) {
+      let gCount = 1;
+      if (playerIds.length <= 5) gCount = 1;
+      else if (playerIds.length <= 10) gCount = 2;
+      else gCount = 4;
 
-    const { matches, brackets } = buildBracketAndMatches("random", bracketSize, shuffled, defaultDateStr);
-    
-    state.matches = matches;
-    state.brackets = brackets;
+      const { groups, matches } = buildGroupMatchesAndGroups(activeT.id, playerIds, gCount, defaultDateStr);
+      activeT.playerIds = playerIds;
+      activeT.drawSize = playerIds.length;
+      activeT.groups = groups;
+      
+      state.matches = matches;
+      state.brackets = [];
 
-    res.json({
-      matches: state.matches,
-      brackets: state.brackets,
-    });
+      addNotification(`Pengundian Fase Grup selesai: ${playerIds.length} pemain berhasil dibagi ke dalam ${groups.length} grup!`, 'system');
+
+      res.json({
+        matches: state.matches,
+        brackets: [],
+        groups: groups
+      });
+    } else {
+      // Perform seeded draw to place top seeds top-down and separate them
+      const shuffled = performSeededDraw(selectedPlayers, bracketSize);
+
+      // Update active tournament playerIds
+      if (activeT) {
+        activeT.playerIds = playerIds;
+        activeT.drawSize = bracketSize;
+        activeT.groups = [];
+      }
+
+      addNotification(`Pengundian turnamen acak dimulai dengan ${playerIds.length} pemain (Braket ${bracketSize})!`, 'system');
+
+      const { matches, brackets } = buildBracketAndMatches(activeT ? activeT.id : "random", bracketSize, shuffled, defaultDateStr);
+      
+      state.matches = matches;
+      state.brackets = brackets;
+
+      res.json({
+        matches: state.matches,
+        brackets: state.brackets,
+      });
+    }
   });
 
   // API Routes: Manual database save/sync
@@ -846,17 +956,20 @@ async function startServer() {
   });
 
   app.post("/api/tournaments", (req, res) => {
-    const { name, drawSize, playerIds, customDate } = req.body;
+    const { name, drawSize, playerIds, customDate, type, groupCount } = req.body;
+    const isGroupType = type === 'group';
     const size = Number(drawSize);
     if (!name || name.trim() === "") {
       return res.status(400).json({ error: "Nama turnamen wajib diisi." });
     }
-    if (![4, 8, 16, 32, 64].includes(size)) {
-      return res.status(400).json({ error: "Ukuran turnamen harus 4, 8, 16, 32, atau 64 atlet." });
+    if (!isGroupType) {
+      if (![4, 8, 16, 32, 64].includes(size)) {
+        return res.status(400).json({ error: "Ukuran turnamen harus 4, 8, 16, 32, atau 64 atlet." });
+      }
     }
 
     const pIds = playerIds || [];
-    if (pIds.length > 0 && pIds.length > size) {
+    if (!isGroupType && pIds.length > 0 && pIds.length > size) {
       return res.status(400).json({ error: `Jumlah pemain tidak boleh melebihi ukuran braket (${size} atlet).` });
     }
 
@@ -867,12 +980,14 @@ async function startServer() {
     const newTournament: Tournament = {
       id: newTournamentId,
       name,
-      drawSize: size,
+      drawSize: isGroupType ? pIds.length : size,
       playerIds: pIds,
       matches: [],
       brackets: [],
       createdAt: new Date().toISOString(),
-      customDate: tDate
+      customDate: tDate,
+      type: isGroupType ? 'group' : 'knockout',
+      groups: []
     };
 
     // Add to tournaments list
@@ -882,17 +997,25 @@ async function startServer() {
     state.activeTournamentId = newTournamentId;
 
     if (hasPlayers) {
-      // Run draw logic!
-      const selectedPlayers = state.players.filter(p => pIds.includes(p.id));
-      // Run seeded draw logic to place top seeds top-down and separate them
-      const shuffled = performSeededDraw(selectedPlayers, size);
+      if (isGroupType) {
+        const { groups, matches } = buildGroupMatchesAndGroups(newTournamentId, pIds, Number(groupCount) || 1, tDate);
+        newTournament.groups = groups;
+        newTournament.matches = matches;
+        newTournament.drawSize = pIds.length;
+        addNotification(`🏆 Turnamen baru dibuat: ${name} (Sistem Grup - ${groups.length} Grup, ${pIds.length} Atlet) dan langsung diaktifkan!`, 'system');
+      } else {
+        // Run draw logic!
+        const selectedPlayers = state.players.filter(p => pIds.includes(p.id));
+        // Run seeded draw logic to place top seeds top-down and separate them
+        const shuffled = performSeededDraw(selectedPlayers, size);
 
-      const { matches, brackets } = buildBracketAndMatches(newTournamentId, size, shuffled, tDate);
-      newTournament.matches = matches;
-      newTournament.brackets = brackets;
-      addNotification(`🏆 Turnamen baru dibuat: ${name} dengan ${pIds.length} pemain (Braket ${size} Atlet) dan langsung diaktifkan!`, 'system');
+        const { matches, brackets } = buildBracketAndMatches(newTournamentId, size, shuffled, tDate);
+        newTournament.matches = matches;
+        newTournament.brackets = brackets;
+        addNotification(`🏆 Turnamen baru dibuat: ${name} dengan ${pIds.length} pemain (Braket ${size} Atlet) dan langsung diaktifkan!`, 'system');
+      }
     } else {
-      addNotification(`🏆 Turnamen baru dibuat: ${name} (Braket Kosong, susun pemain belakangan)`, 'system');
+      addNotification(`🏆 Turnamen baru dibuat: ${name} (${isGroupType ? 'Sistem Grup' : 'Braket'} Kosong, susun pemain belakangan)`, 'system');
     }
 
     res.status(201).json(newTournament);

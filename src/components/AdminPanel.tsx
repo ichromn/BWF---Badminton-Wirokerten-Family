@@ -73,6 +73,9 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
   const [drawSize, setDrawSize] = useState<number>(8);
   const [isDrawing, setIsDrawing] = useState(false);
 
+  const activeT = serverState.tournaments?.find(t => t.id === serverState.activeTournamentId);
+  const isActiveGroupType = activeT ? activeT.type === 'group' : false;
+
   // API Simulation Sandbox State
   const [apiPlayer, setApiPlayer] = useState<1 | 2>(1);
   const [apiAction, setApiAction] = useState<'increment' | 'set-score'>('increment');
@@ -85,6 +88,8 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
   const [newTourneySize, setNewTourneySize] = useState<number>(8);
   const [newTourneyPlayers, setNewTourneyPlayers] = useState<string[]>([]);
   const [newTourneyDate, setNewTourneyDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [newTourneyType, setNewTourneyType] = useState<'knockout' | 'group'>('knockout');
+  const [newTourneyGroupCount, setNewTourneyGroupCount] = useState<number>(1);
   const [isCreatingTourney, setIsCreatingTourney] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
 
@@ -179,7 +184,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
       setError("Nama turnamen wajib diisi.");
       return;
     }
-    if (newTourneyPlayers.length > 0 && newTourneyPlayers.length > newTourneySize) {
+    if (newTourneyType !== 'group' && newTourneyPlayers.length > 0 && newTourneyPlayers.length > newTourneySize) {
       setError(`Jumlah pemain tidak boleh melebihi ukuran braket (${newTourneySize} atlet).`);
       return;
     }
@@ -193,7 +198,9 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
           name: newTourneyName,
           drawSize: newTourneySize,
           playerIds: newTourneyPlayers,
-          customDate: newTourneyDate
+          customDate: newTourneyDate,
+          type: newTourneyType,
+          groupCount: newTourneyGroupCount
         }),
       });
 
@@ -215,9 +222,10 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
   };
 
   const handleQuickSelectForNewTourney = (size: number) => {
+    const targetSize = newTourneyType === 'group' ? 8 : size;
     const ids = [...serverState.players]
       .sort(() => Math.random() - 0.5)
-      .slice(0, size)
+      .slice(0, targetSize)
       .map(p => p.id);
     setNewTourneyPlayers(ids);
   };
@@ -226,7 +234,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
     if (newTourneyPlayers.includes(id)) {
       setNewTourneyPlayers(prev => prev.filter(pId => pId !== id));
     } else {
-      if (newTourneyPlayers.length >= newTourneySize) {
+      if (newTourneyType !== 'group' && newTourneyPlayers.length >= newTourneySize) {
         setError(`Maksimum ${newTourneySize} atlet untuk turnamen ini.`);
         return;
       }
@@ -421,7 +429,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
     if (selectedPlayerIds.includes(playerId)) {
       setSelectedPlayerIds(prev => prev.filter(id => id !== playerId));
     } else {
-      if (selectedPlayerIds.length >= drawSize) {
+      if (!isActiveGroupType && selectedPlayerIds.length >= drawSize) {
         setError(`Batas pengundian adalah ${drawSize} pemain. Hapus pemain lain terlebih dahulu atau ubah ukuran braket.`);
         return;
       }
@@ -431,7 +439,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
 
   // Perform Random Tournament Draw
   const handleDrawTournament = async () => {
-    if (selectedPlayerIds.length > drawSize) {
+    if (!isActiveGroupType && selectedPlayerIds.length > drawSize) {
       setError(`Jumlah pemain terpilih (${selectedPlayerIds.length}) melebihi ukuran braket (${drawSize}).`);
       return;
     }
@@ -453,7 +461,10 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
         throw new Error(err.error || "Gagal mengundi turnamen.");
       }
 
-      setSuccess(`🎉 Turnamen berhasil diundi dengan ${drawSize} pemain! Papan braket telah dibuat.`);
+      setSuccess(isActiveGroupType 
+        ? `🎉 Turnamen Fase Grup berhasil diundi dengan ${selectedPlayerIds.length} pemain! Grup dan jadwal pertandingan telah dibuat.`
+        : `🎉 Turnamen berhasil diundi dengan ${drawSize} pemain! Papan braket telah dibuat.`
+      );
       setSelectedPlayerIds([]);
       onRefresh();
     } catch (err: any) {
@@ -627,7 +638,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
           <form onSubmit={handleCreateTournament} className="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-4 animate-fadeIn">
             <h4 className="font-display font-bold text-sm text-slate-800 uppercase tracking-wider">FORMULIR TURNAMEN BARU</h4>
             
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-[10px] font-mono font-bold text-slate-450 uppercase tracking-widest mb-1.5">Nama Turnamen</label>
                 <input
@@ -650,25 +661,80 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
                   required
                 />
               </div>
+            </div>
+
+            {/* Tournament System Selector */}
+            <div className="bg-slate-100/50 p-3.5 rounded-lg border border-slate-150 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-mono font-bold text-slate-450 uppercase tracking-widest mb-1.5">Sistem Turnamen</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setNewTourneyType('knockout'); setNewTourneyPlayers([]); }}
+                    className={`flex-1 py-2 px-3 text-xs font-mono font-bold rounded-lg border transition-all text-center cursor-pointer ${
+                      newTourneyType === 'knockout'
+                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    🏆 Sistem Gugur (Knockout)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setNewTourneyType('group'); setNewTourneyPlayers([]); }}
+                    className={`flex-1 py-2 px-3 text-xs font-mono font-bold rounded-lg border transition-all text-center cursor-pointer ${
+                      newTourneyType === 'group'
+                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    Pool / Sistem Grup
+                  </button>
+                </div>
+              </div>
 
               <div>
-                <label className="block text-[10px] font-mono font-bold text-slate-450 uppercase tracking-widest mb-1.5">Ukuran Bagan (Jumlah Atlet)</label>
-                <div className="flex flex-wrap gap-2">
-                  {[4, 8, 16, 32, 64].map((size) => (
-                    <button
-                      key={size}
-                      type="button"
-                      onClick={() => { setNewTourneySize(size); setNewTourneyPlayers([]); }}
-                      className={`flex-1 min-w-[70px] py-2 text-xs font-mono font-bold rounded-lg border transition-all ${
-                        newTourneySize === size
-                          ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
-                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
-                      }`}
-                    >
-                      {size} Atlet {size === 4 ? '(SF)' : size === 8 ? '(QF)' : ''}
-                    </button>
-                  ))}
-                </div>
+                {newTourneyType === 'knockout' ? (
+                  <div>
+                    <label className="block text-[10px] font-mono font-bold text-slate-450 uppercase tracking-widest mb-1.5">Ukuran Bagan (Jumlah Atlet)</label>
+                    <div className="flex flex-wrap gap-2">
+                      {[4, 8, 16, 32].map((size) => (
+                        <button
+                          key={size}
+                          type="button"
+                          onClick={() => { setNewTourneySize(size); setNewTourneyPlayers([]); }}
+                          className={`flex-1 py-2 text-xs font-mono font-bold rounded-lg border transition-all ${
+                            newTourneySize === size
+                              ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
+                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          {size} Atlet
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-[10px] font-mono font-bold text-slate-450 uppercase tracking-widest mb-1.5">Jumlah Grup Penyisihan</label>
+                    <div className="flex flex-wrap gap-2">
+                      {[1, 2, 4].map((count) => (
+                        <button
+                          key={count}
+                          type="button"
+                          onClick={() => { setNewTourneyGroupCount(count); }}
+                          className={`flex-1 py-2 text-xs font-mono font-bold rounded-lg border transition-all ${
+                            newTourneyGroupCount === count
+                              ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
+                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          {count} Grup ({count === 1 ? 'Satu Pool' : `${count} Pool`})
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -680,7 +746,9 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
                     PILIH ATLET (OPSIONAL)
                   </label>
                   <p className="text-[9.5px] text-slate-400 font-mono">
-                    Kosongkan jika ingin menyusun & mengundi pemain belakangan setelah turnamen dibuat.
+                    {newTourneyType === 'group' 
+                      ? `Pilih atlet yang ingin dimasukkan ke dalam grup (Terpilih: ${newTourneyPlayers.length} Atlet)` 
+                      : `Harus tepat ${newTourneySize} atlet jika langsung diundi (Terpilih: ${newTourneyPlayers.length}/${newTourneySize})`}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -689,7 +757,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
                     onClick={() => handleQuickSelectForNewTourney(newTourneySize)}
                     className="text-[9.5px] font-mono font-bold text-emerald-600 hover:text-emerald-500 transition-colors uppercase bg-transparent border-none p-0 cursor-pointer"
                   >
-                    [ Acak {newTourneySize} ]
+                    [ Acak {newTourneyType === 'group' ? '8' : newTourneySize} ]
                   </button>
                   {newTourneyPlayers.length > 0 && (
                     <button
@@ -734,7 +802,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
 
             <button
               type="submit"
-              disabled={isCreatingTourney || (newTourneyPlayers.length > 0 && newTourneyPlayers.length > newTourneySize)}
+              disabled={isCreatingTourney || (newTourneyType !== 'group' && newTourneyPlayers.length > 0 && newTourneyPlayers.length !== newTourneySize)}
               className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-200 disabled:text-slate-400 text-white font-display font-bold text-xs uppercase tracking-wider py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer border-none"
             >
               <Trophy className="w-4 h-4" /> {isCreatingTourney ? 'MEMPROSES...' : 'BUAT & AKTIFKAN TURNAMEN BARU'}
@@ -1185,39 +1253,45 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
           </div>
 
           <div className="space-y-4">
-            <div>
-              <label className="block text-[10px] font-mono font-bold text-slate-450 uppercase tracking-widest mb-2.5">Ukuran Turnamen (Braket)</label>
-              <div className="flex flex-wrap gap-2">
-                {[4, 8, 16, 32, 64].map((size) => (
-                  <button
-                    key={size}
-                    type="button"
-                    onClick={() => {
-                      setDrawSize(size);
-                      setSelectedPlayerIds([]);
-                    }}
-                    className={`flex-1 min-w-[70px] py-2.5 px-3 text-xs font-mono font-bold rounded-lg border transition-all cursor-pointer ${
-                      drawSize === size
-                        ? 'bg-emerald-800 text-white border-emerald-800 shadow-[0_2px_8px_rgba(6,95,70,0.25)]'
-                        : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100/60'
-                    }`}
-                  >
-                    {size === 4 ? 'SEMIFINAL (4)' : size === 8 ? 'PEREMPAT (8)' : `${size} ATLET`}
-                  </button>
-                ))}
+            {!isActiveGroupType && (
+              <div>
+                <label className="block text-[10px] font-mono font-bold text-slate-450 uppercase tracking-widest mb-2.5">Ukuran Turnamen (Braket)</label>
+                <div className="flex flex-wrap gap-2">
+                  {[4, 8, 16, 32].map((size) => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => {
+                        setDrawSize(size);
+                        setSelectedPlayerIds([]);
+                      }}
+                      className={`flex-1 min-w-[70px] py-2.5 px-3 text-xs font-mono font-bold rounded-lg border transition-all cursor-pointer ${
+                        drawSize === size
+                          ? 'bg-emerald-800 text-white border-emerald-800 shadow-[0_2px_8px_rgba(6,95,70,0.25)]'
+                          : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100/60'
+                      }`}
+                    >
+                      {size === 4 ? 'SEMIFINAL (4)' : size === 8 ? 'PEREMPAT (8)' : `${size} ATLET`}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="bg-slate-50 p-3 rounded-lg flex items-center justify-between border border-slate-200 font-mono">
               <span className="text-[11px] text-slate-500 font-medium">
-                Pemain Terpilih: <span className="text-emerald-800 font-bold">{selectedPlayerIds.length} / {drawSize}</span>
+                {isActiveGroupType ? (
+                  <>Pemain Terpilih: <span className="text-emerald-800 font-bold">{selectedPlayerIds.length} Atlet</span> (Sistem Grup)</>
+                ) : (
+                  <>Pemain Terpilih: <span className="text-emerald-800 font-bold">{selectedPlayerIds.length} / {drawSize}</span></>
+                )}
               </span>
               <button
                 type="button"
-                onClick={() => handleQuickSelect(drawSize)}
+                onClick={() => handleQuickSelect(isActiveGroupType ? 8 : drawSize)}
                 className="text-[10px] text-emerald-800 hover:text-emerald-700 font-bold flex items-center gap-1 cursor-pointer bg-transparent border-none"
               >
-                <Users className="w-3.5 h-3.5" /> Ambil {drawSize} Acak
+                <Users className="w-3.5 h-3.5" /> Ambil {isActiveGroupType ? '8' : drawSize} Acak
               </button>
             </div>
 
@@ -1259,11 +1333,11 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
             <button
               type="button"
               onClick={handleDrawTournament}
-              disabled={isDrawing || selectedPlayerIds.length > drawSize || selectedPlayerIds.length < 2}
+              disabled={isDrawing || (!isActiveGroupType && selectedPlayerIds.length !== drawSize) || selectedPlayerIds.length < 2}
               className="w-full bg-emerald-800 hover:bg-emerald-700 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-display font-bold text-xs uppercase tracking-wider py-3 px-4 rounded-lg shadow-[0_2px_8px_rgba(6,95,70,0.25)] transition-all flex items-center justify-center gap-2 cursor-pointer border-none"
             >
               <Shuffle className="w-4 h-4" />
-              {isDrawing ? "MENGUNDI BRAKET..." : "UNDI TURNAMEN SEKARANG"}
+              {isDrawing ? "MENGUNDI..." : "UNDI TURNAMEN SEKARANG"}
             </button>
           </div>
         </div>

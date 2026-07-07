@@ -82,6 +82,8 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
     id: activeTournamentIdFromServer,
     name: "Turnamen Utama Court 01",
     drawSize: 8,
+    type: 'knockout' as const,
+    groups: [],
     playerIds: serverState.players.map(p => p.id),
     matches: serverState.matches,
     brackets: serverState.brackets,
@@ -100,6 +102,105 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
     const matchesRound = scheduleRoundFilter === 'all' || match.round === scheduleRoundFilter;
     return matchesStatus && matchesRound;
   });
+
+  interface StandingRow {
+    playerId: string;
+    playerName: string;
+    club: string;
+    played: number;
+    won: number;
+    lost: number;
+    setsWon: number;
+    setsLost: number;
+    pointsWon: number;
+    pointsLost: number;
+  }
+
+  const computeGroupStandings = (group: any, matches: Match[], players: Player[]) => {
+    const standings: Record<string, StandingRow> = {};
+    
+    // Initialize
+    const gPlayers = players.filter(p => group.playerIds.includes(p.id));
+    for (const p of gPlayers) {
+      standings[p.id] = {
+        playerId: p.id,
+        playerName: p.name,
+        club: p.club || "Badminton Club",
+        played: 0,
+        won: 0,
+        lost: 0,
+        setsWon: 0,
+        setsLost: 0,
+        pointsWon: 0,
+        pointsLost: 0
+      };
+    }
+
+    // Filter completed matches for this group
+    const groupMatches = matches.filter(m => m.round === group.name && m.status === 'completed');
+
+    for (const match of groupMatches) {
+      const p1Id = match.player1Id;
+      const p2Id = match.player2Id;
+
+      if (!p1Id || !p2Id) continue;
+
+      const s1 = standings[p1Id];
+      const s2 = standings[p2Id];
+
+      if (!s1 || !s2) continue;
+
+      s1.played += 1;
+      s2.played += 1;
+
+      let p1Sets = 0;
+      let p2Sets = 0;
+      let p1Points = 0;
+      let p2Points = 0;
+
+      for (const set of match.scores) {
+        p1Points += set.p1 || 0;
+        p2Points += set.p2 || 0;
+
+        if ((set.p1 || 0) > (set.p2 || 0)) {
+          p1Sets++;
+        } else if ((set.p2 || 0) > (set.p1 || 0)) {
+          p2Sets++;
+        }
+      }
+
+      s1.setsWon += p1Sets;
+      s1.setsLost += p2Sets;
+      s2.setsWon += p2Sets;
+      s2.setsLost += p1Sets;
+
+      s1.pointsWon += p1Points;
+      s1.pointsLost += p2Points;
+      s2.pointsWon += p2Points;
+      s2.pointsLost += p1Points;
+
+      if (p1Sets > p2Sets) {
+        s1.won += 1;
+        s2.lost += 1;
+      } else {
+        s2.won += 1;
+        s1.lost += 1;
+      }
+    }
+
+    // Sort: 1. Won Matches, 2. Difference Sets, 3. Difference Points
+    return Object.values(standings).sort((a, b) => {
+      if (b.won !== a.won) return b.won - a.won;
+      
+      const setDiffA = a.setsWon - a.setsLost;
+      const setDiffB = b.setsWon - b.setsLost;
+      if (setDiffB !== setDiffA) return setDiffB - setDiffA;
+
+      const ptDiffA = a.pointsWon - a.pointsLost;
+      const ptDiffB = b.pointsWon - b.pointsLost;
+      return ptDiffB - ptDiffA;
+    });
+  };
 
   const liveMatch = matchesToRender.find(m => m.status === 'live');
   const completedMatches = matchesToRender.filter(m => m.status === 'completed');
@@ -522,7 +623,7 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
               : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
           }`}
         >
-          <Trophy className="w-4 h-4" /> BRAKET BAGAN
+          <Trophy className="w-4 h-4" /> {currentTournament.type === 'group' ? 'KLASEMEN & GRUP' : 'BRAKET BAGAN'}
         </button>
         <button
           onClick={() => setActiveTab('history')}
@@ -1058,165 +1159,317 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
 
         {/* TAB 2: TOURNAMENT BRACKET VISUALIZER */}
         {activeTab === 'bracket' && (
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm animate-fadeIn" id="bracket-explorer">
-            <div className="border-b border-slate-200 pb-4 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-              <div>
-                <h3 className="font-display font-bold text-slate-800 text-lg tracking-wide">BAGAN ELIMINASI TURNAMEN</h3>
-                <p className="text-xs text-slate-500 font-mono mt-0.5">SISTEM GUGUR TUNGGAL DIKONDISIKAN SECARA OTOMATIS</p>
+          currentTournament.type === 'group' ? (
+            <div className="space-y-8 animate-fadeIn" id="group-stage-explorer">
+              {/* Header Block */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div>
+                  <h3 className="font-display font-bold text-slate-800 text-lg tracking-wide uppercase">Klasemen & Jadwal Laga Grup</h3>
+                  <p className="text-xs text-slate-500 font-mono mt-0.5">SISTEM SETENGAH KOMPETISI (ROUND ROBIN) DIKONDISIKAN SECARA REAL-TIME</p>
+                </div>
+                <span className="bg-emerald-50 text-emerald-700 font-mono text-xs px-3.5 py-1.5 rounded-full border border-emerald-200 uppercase font-bold">
+                  POOL STAGE ROUND ROBIN
+                </span>
               </div>
-              <span className="bg-emerald-50 text-emerald-700 font-mono text-xs px-3.5 py-1.5 rounded-full border border-emerald-200">
-                SINGLE ELIMINATION
-              </span>
-            </div>
 
-            {bracketsToRender.length > 0 ? (() => {
-              const numRounds = orderedRoundIndexes.length;
-              const maxMatchesInRound = Math.max(...Object.values(roundsMap).map((nodes: any) => nodes.length), 1);
-              const bracketHeight = Math.max(385, maxMatchesInRound * 115);
-              const bracketMinWidth = numRounds * 240;
-
-              return (
-                <div className="overflow-x-auto pb-4">
-                  {/* Horizontal flow of columns */}
-                  <div 
-                    className="flex items-stretch justify-between gap-8 py-4"
-                    style={{ minWidth: `${bracketMinWidth}px` }}
-                  >
-                    {orderedRoundIndexes.map((roundIdx, idx) => {
-                      const roundNodes = roundsMap[roundIdx];
-                      const roundName = roundNodes[0]?.roundName || `Babak ${roundIdx}`;
-
-                      return (
-                        <div 
-                          key={roundIdx} 
-                          className="flex-1 flex flex-col justify-around space-y-4"
-                          style={{ height: `${bracketHeight}px` }}
-                        >
-                          {/* Round Title */}
-                          <div className="text-center border-b border-slate-100 pb-2 mb-2 font-mono">
-                            <span className="text-[11px] font-extrabold text-emerald-600 uppercase tracking-widest">{roundName}</span>
-                            <span className="block text-[9px] text-slate-400 mt-0.5">{roundNodes.length} PERTANDINGAN</span>
-                          </div>
-
-                          {/* Nodes lists */}
-                          <div className="flex-1 flex flex-col justify-around">
-                            {roundNodes.map((node) => {
-                              const matchObj = matchesToRender.find(m => m.id === node.matchId);
-                              const isLive = matchObj?.status === 'live';
-                              const isCompleted = matchObj?.status === 'completed';
-                              const p1Obj = serverState.players?.find(p => p.id === node.player1Id);
-                              const p2Obj = serverState.players?.find(p => p.id === node.player2Id);
-
-                              return (
-                                <div 
-                                  key={node.id} 
-                                  className={`p-3 rounded-xl border shadow-sm transition-all relative ${
-                                    isLive 
-                                      ? 'bg-white text-slate-800 border-emerald-500 ring-2 ring-emerald-500/20' 
-                                      : isCompleted
-                                        ? 'bg-slate-50 text-slate-700 border-slate-200'
-                                        : 'bg-slate-50/40 text-slate-400 border-slate-100/80'
-                                  }`}
-                                >
-                                  {/* Match badge */}
-                                  <div className="flex justify-between items-center mb-2 font-mono">
-                                    <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide ${
-                                      isLive 
-                                        ? 'bg-emerald-600 text-white' 
-                                        : isCompleted 
-                                          ? 'bg-slate-200 text-slate-500' 
-                                          : 'bg-indigo-50 text-indigo-600 border border-indigo-100'
-                                    }`}>
-                                      {isLive ? 'LIVE' : isCompleted ? 'SELESAI' : 'SCHEDULED'}
-                                    </span>
-                                    <span className="text-[9px] font-semibold text-slate-400">ID: {node.id.toUpperCase()}</span>
-                                  </div>
-
-                                  {matchObj && (matchObj.customDate || matchObj.customTime) && (
-                                    <div className="flex gap-1 mb-2 font-mono flex-wrap">
-                                      {matchObj.customDate && (
-                                        <span className="text-[8px] text-slate-500 bg-slate-100 border border-slate-200/60 px-1 py-0.5 rounded">
-                                          📅 {matchObj.customDate}
-                                        </span>
-                                      )}
-                                      {matchObj.customTime && (
-                                        <span className="text-[8px] text-indigo-600 bg-indigo-50 border border-indigo-100/60 px-1 py-0.5 rounded">
-                                          ⏰ {matchObj.customTime}
-                                        </span>
-                                      )}
-                                    </div>
-                                  )}
-
-                                  {/* Player slots inside match */}
-                                  <div className="space-y-1.5 font-sans">
-                                    {/* Player 1 Slot */}
-                                    <div className="flex justify-between items-center p-1.5 rounded bg-white border border-slate-100">
-                                      <div className="flex items-center gap-1.5 min-w-0">
-                                        {p1Obj?.seed && (
-                                          <span className="bg-amber-100 text-amber-800 text-[9px] font-mono font-black px-1 py-0.5 rounded border border-amber-200 shrink-0" title={`Seed ${p1Obj.seed}`}>
-                                            S{p1Obj.seed}
-                                          </span>
-                                        )}
-                                        <span className={`text-xs truncate font-bold ${
-                                          node.winnerId === node.player1Id && node.player1Id
-                                            ? 'text-amber-600' 
-                                            : 'text-slate-700'
-                                        }`}>
-                                          {node.player1Name || "Belum ada pemain"}
-                                        </span>
-                                      </div>
-                                      {node.winnerId === node.player1Id && node.player1Id && (
-                                        <span className="text-[8px] bg-amber-50 text-amber-700 border border-amber-200 font-bold px-1.5 rounded font-mono">WIN</span>
-                                      )}
-                                    </div>
-
-                                    <div className="text-center font-mono font-bold text-[9px] text-slate-400">VS</div>
-
-                                    {/* Player 2 Slot */}
-                                    <div className="flex justify-between items-center p-1.5 rounded bg-white border border-slate-100">
-                                      <div className="flex items-center gap-1.5 min-w-0">
-                                        {p2Obj?.seed && (
-                                          <span className="bg-amber-100 text-amber-800 text-[9px] font-mono font-black px-1 py-0.5 rounded border border-amber-200 shrink-0" title={`Seed ${p2Obj.seed}`}>
-                                            S{p2Obj.seed}
-                                          </span>
-                                        )}
-                                        <span className={`text-xs truncate font-bold ${
-                                          node.winnerId === node.player2Id && node.player2Id
-                                            ? 'text-amber-600' 
-                                            : 'text-slate-700'
-                                        }`}>
-                                          {node.player2Name || "Belum ada pemain"}
-                                        </span>
-                                      </div>
-                                      {node.winnerId === node.player2Id && node.player2Id && (
-                                        <span className="text-[8px] bg-amber-50 text-amber-700 border border-amber-200 font-bold px-1.5 rounded font-mono">WIN</span>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
+              {currentTournament.groups && currentTournament.groups.length > 0 ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {currentTournament.groups.map((group) => {
+                    const standings = computeGroupStandings(group, matchesToRender, serverState.players);
+                    const groupMatches = matchesToRender.filter(m => m.round === group.name);
+                    
+                    return (
+                      <div key={group.id} className="bg-white rounded-2xl border border-slate-200 shadow-md overflow-hidden flex flex-col justify-between">
+                        {/* Group Header */}
+                        <div className="bg-emerald-800 px-5 py-4 flex items-center justify-between border-b border-emerald-900">
+                          <h4 className="font-display font-black text-white text-sm tracking-widest uppercase">{group.name}</h4>
+                          <span className="text-[10px] font-mono font-bold text-emerald-100 uppercase tracking-widest">{standings.length} Atlet</span>
                         </div>
-                      );
-                    })}
+
+                        {/* Standings Table */}
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse font-mono text-xs">
+                            <thead>
+                              <tr className="bg-slate-50 text-slate-500 border-b border-slate-200">
+                                <th className="py-2.5 px-3 text-center font-bold text-[10px] w-10">POS</th>
+                                <th className="py-2.5 px-3 font-bold text-[10px]">ATLET / KLUB</th>
+                                <th className="py-2.5 px-3 text-center font-bold text-[10px] w-12">M</th>
+                                <th className="py-2.5 px-3 text-center font-bold text-[10px] w-10">MANG</th>
+                                <th className="py-2.5 px-3 text-center font-bold text-[10px] w-10">KAL</th>
+                                <th className="py-2.5 px-3 text-center font-bold text-[10px] w-16">SET</th>
+                                <th className="py-2.5 px-3 text-center font-bold text-[10px] w-20">POIN</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 text-slate-700">
+                              {standings.map((row, idx) => {
+                                const isLeader = idx === 0;
+                                return (
+                                  <tr key={row.playerId} className={`hover:bg-slate-50/50 transition-colors ${isLeader ? 'bg-emerald-50/25' : ''}`}>
+                                    <td className="py-3 px-3 text-center font-bold">
+                                      {isLeader ? (
+                                        <span className="inline-flex items-center justify-center w-5 h-5 bg-amber-500 text-white rounded-full text-[10px] shadow-sm animate-bounce">1</span>
+                                      ) : (
+                                        idx + 1
+                                      )}
+                                    </td>
+                                    <td className="py-3 px-3 font-sans">
+                                      <p className="font-bold text-slate-800 text-xs">{row.playerName}</p>
+                                      <p className="text-[10px] text-slate-400 font-mono">{row.club}</p>
+                                    </td>
+                                    <td className="py-3 px-3 text-center font-bold">{row.played}</td>
+                                    <td className="py-3 px-3 text-center text-emerald-700 font-black">{row.won}</td>
+                                    <td className="py-3 px-3 text-center text-rose-600 font-bold">{row.lost}</td>
+                                    <td className="py-3 px-3 text-center text-[11px] font-mono text-slate-500">
+                                      {row.setsWon}-{row.setsLost}
+                                    </td>
+                                    <td className="py-3 px-3 text-center text-[11px] font-mono text-slate-500">
+                                      {row.pointsWon}-{row.pointsLost}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Group Matches Sub-section */}
+                        <div className="bg-slate-50/50 p-4 border-t border-slate-150 flex-grow">
+                          <h5 className="text-[10px] font-mono font-bold text-slate-450 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                            <Activity className="w-3.5 h-3.5 text-emerald-700" /> Hasil & Jadwal Pertandingan
+                          </h5>
+                          
+                          {groupMatches.length > 0 ? (
+                            <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
+                              {groupMatches.map((match) => {
+                                const isCompleted = match.status === 'completed';
+                                const isLive = match.status === 'live';
+                                
+                                // Extract current set or completed score line
+                                const scoreLine = match.scores.map(s => `${s.p1}-${s.p2}`).join(', ');
+
+                                return (
+                                  <div 
+                                    key={match.id} 
+                                    className={`p-2.5 rounded-xl border font-sans text-xs flex items-center justify-between gap-3 transition-all ${
+                                      isLive 
+                                        ? 'bg-amber-50/60 border-amber-300 shadow-sm animate-pulse' 
+                                        : isCompleted 
+                                          ? 'bg-white border-slate-150 text-slate-600' 
+                                          : 'bg-white border-slate-200/80 text-slate-400 border-dashed'
+                                    }`}
+                                  >
+                                    <div className="flex-grow space-y-1">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className={`text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                                          isLive 
+                                            ? 'bg-amber-500 text-white' 
+                                            : isCompleted 
+                                              ? 'bg-slate-100 text-slate-500' 
+                                              : 'bg-slate-50 text-slate-400'
+                                        }`}>
+                                          {isLive ? 'LIVE' : isCompleted ? 'SELESAI' : 'TERJADWAL'}
+                                        </span>
+                                        {match.customDate && (
+                                          <span className="text-[8px] text-slate-400 font-mono">{match.customDate}</span>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center justify-between gap-2">
+                                        <div className="font-bold text-slate-700">
+                                          {match.player1Name} <span className="text-slate-400 font-medium">vs</span> {match.player2Name}
+                                        </div>
+                                        {isCompleted && (
+                                          <div className="font-mono font-bold text-emerald-800 text-[11px] bg-emerald-50 px-2 py-0.5 rounded">
+                                            {scoreLine}
+                                          </div>
+                                        )}
+                                        {isLive && (
+                                          <div className="font-mono font-black text-amber-600 text-[11px] animate-pulse">
+                                            {scoreLine || '0-0'}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-[10px] text-slate-400 font-mono text-center py-4">Belum ada pertandingan dijadwalkan.</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 shadow-sm font-mono text-slate-400 space-y-3">
+                  <ShieldAlert className="w-12 h-12 text-slate-300 mx-auto" />
+                  <p className="text-sm font-bold">FASE GRUP BELUM DIUNDI</p>
+                  <p className="text-xs">Silakan hubungi administrator untuk melakukan pengundian pembagian grup dan membuat jadwal laga.</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm animate-fadeIn" id="bracket-explorer">
+              <div className="border-b border-slate-200 pb-4 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div>
+                  <h3 className="font-display font-bold text-slate-800 text-lg tracking-wide">BAGAN ELIMINASI TURNAMEN</h3>
+                  <p className="text-xs text-slate-500 font-mono mt-0.5">SISTEM GUGUR TUNGGAL DIKONDISIKAN SECARA OTOMATIS</p>
+                </div>
+                <span className="bg-emerald-50 text-emerald-700 font-mono text-xs px-3.5 py-1.5 rounded-full border border-emerald-200">
+                  SINGLE ELIMINATION
+                </span>
+              </div>
+
+              {bracketsToRender.length > 0 ? (() => {
+                const numRounds = orderedRoundIndexes.length;
+                const maxMatchesInRound = Math.max(...Object.values(roundsMap).map((nodes: any) => nodes.length), 1);
+                const bracketHeight = Math.max(385, maxMatchesInRound * 115);
+                const bracketMinWidth = numRounds * 240;
+
+                return (
+                  <div className="overflow-x-auto pb-4">
+                    {/* Horizontal flow of columns */}
+                    <div 
+                      className="flex items-stretch justify-between gap-8 py-4"
+                      style={{ minWidth: `${bracketMinWidth}px` }}
+                    >
+                      {orderedRoundIndexes.map((roundIdx, idx) => {
+                        const roundNodes = roundsMap[roundIdx];
+                        const roundName = roundNodes[0]?.roundName || `Babak ${roundIdx}`;
+
+                        return (
+                          <div 
+                            key={roundIdx} 
+                            className="flex-1 flex flex-col justify-around space-y-4"
+                            style={{ height: `${bracketHeight}px` }}
+                          >
+                            {/* Round Title */}
+                            <div className="text-center border-b border-slate-100 pb-2 mb-2 font-mono">
+                              <span className="text-[11px] font-extrabold text-emerald-600 uppercase tracking-widest">{roundName}</span>
+                              <span className="block text-[9px] text-slate-400 mt-0.5">{roundNodes.length} PERTANDINGAN</span>
+                            </div>
+
+                            {/* Nodes lists */}
+                            <div className="flex-1 flex flex-col justify-around">
+                              {roundNodes.map((node) => {
+                                const matchObj = matchesToRender.find(m => m.id === node.matchId);
+                                const isLive = matchObj?.status === 'live';
+                                const isCompleted = matchObj?.status === 'completed';
+                                const p1Obj = serverState.players?.find(p => p.id === node.player1Id);
+                                const p2Obj = serverState.players?.find(p => p.id === node.player2Id);
+
+                                return (
+                                  <div 
+                                    key={node.id} 
+                                    className={`p-3 rounded-xl border shadow-sm transition-all relative ${
+                                      isLive 
+                                        ? 'bg-white text-slate-800 border-emerald-500 ring-2 ring-emerald-500/20' 
+                                        : isCompleted
+                                          ? 'bg-slate-50 text-slate-700 border-slate-200'
+                                          : 'bg-slate-50/40 text-slate-400 border-slate-100/80'
+                                    }`}
+                                  >
+                                    {/* Match badge */}
+                                    <div className="flex justify-between items-center mb-2 font-mono">
+                                      <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide ${
+                                        isLive 
+                                          ? 'bg-emerald-600 text-white' 
+                                          : isCompleted 
+                                            ? 'bg-slate-200 text-slate-500' 
+                                            : 'bg-indigo-50 text-indigo-600 border border-indigo-100'
+                                      }`}>
+                                        {isLive ? 'LIVE' : isCompleted ? 'SELESAI' : 'SCHEDULED'}
+                                      </span>
+                                      <span className="text-[9px] font-semibold text-slate-400">ID: {node.id.toUpperCase()}</span>
+                                    </div>
+
+                                    {matchObj && (matchObj.customDate || matchObj.customTime) && (
+                                      <div className="flex gap-1 mb-2 font-mono flex-wrap">
+                                        {matchObj.customDate && (
+                                          <span className="text-[8px] text-slate-500 bg-slate-100 border border-slate-200/60 px-1 py-0.5 rounded">
+                                            📅 {matchObj.customDate}
+                                          </span>
+                                        )}
+                                        {matchObj.customTime && (
+                                          <span className="text-[8px] text-indigo-600 bg-indigo-50 border border-indigo-100/60 px-1 py-0.5 rounded">
+                                            ⏰ {matchObj.customTime}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {/* Player slots inside match */}
+                                    <div className="space-y-1.5 font-sans">
+                                      {/* Player 1 Slot */}
+                                      <div className="flex justify-between items-center p-1.5 rounded bg-white border border-slate-100">
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                          {p1Obj?.seed && (
+                                            <span className="bg-amber-100 text-amber-800 text-[9px] font-mono font-black px-1 py-0.5 rounded border border-amber-200 shrink-0" title={`Seed ${p1Obj.seed}`}>
+                                              S{p1Obj.seed}
+                                            </span>
+                                          )}
+                                          <span className={`text-xs truncate font-bold ${
+                                            node.winnerId === node.player1Id && node.player1Id
+                                              ? 'text-amber-600' 
+                                              : 'text-slate-700'
+                                          }`}>
+                                            {node.player1Name || "Belum ada pemain"}
+                                          </span>
+                                        </div>
+                                        {node.winnerId === node.player1Id && node.player1Id && (
+                                          <span className="text-[8px] bg-amber-50 text-amber-700 border border-amber-200 font-bold px-1.5 rounded font-mono">WIN</span>
+                                        )}
+                                      </div>
+
+                                      <div className="text-center font-mono font-bold text-[9px] text-slate-400">VS</div>
+
+                                      {/* Player 2 Slot */}
+                                      <div className="flex justify-between items-center p-1.5 rounded bg-white border border-slate-100">
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                          {p2Obj?.seed && (
+                                            <span className="bg-amber-100 text-amber-800 text-[9px] font-mono font-black px-1 py-0.5 rounded border border-amber-200 shrink-0" title={`Seed ${p2Obj.seed}`}>
+                                              S{p2Obj.seed}
+                                            </span>
+                                          )}
+                                          <span className={`text-xs truncate font-bold ${
+                                            node.winnerId === node.player2Id && node.player2Id
+                                              ? 'text-amber-600' 
+                                              : 'text-slate-700'
+                                          }`}>
+                                            {node.player2Name || "Belum ada pemain"}
+                                          </span>
+                                        </div>
+                                        {node.winnerId === node.player2Id && node.player2Id && (
+                                          <span className="text-[8px] bg-amber-50 text-amber-700 border border-amber-200 font-bold px-1.5 rounded font-mono">WIN</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })() : (
+                <div className="text-center py-16 space-y-3">
+                  <div className="w-16 h-16 bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center mx-auto text-slate-400">
+                    <ShieldAlert className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h4 className="font-display font-bold text-slate-800 text-sm tracking-wide">BAGAN TURNAMEN BELUM DIUNDI</h4>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 leading-relaxed">
+                      Masuk ke bagian **Layar Pengelola** untuk mengisi daftar pemain secara manual lalu acak bagan turnamen untuk menyimulasikan pertandingan.
+                    </p>
                   </div>
                 </div>
-              );
-            })() : (
-              <div className="text-center py-16 space-y-3">
-                <div className="w-16 h-16 bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center mx-auto text-slate-400">
-                  <ShieldAlert className="w-8 h-8" />
-                </div>
-                <div>
-                  <h4 className="font-display font-bold text-slate-800 text-sm tracking-wide">BAGAN TURNAMEN BELUM DIUNDI</h4>
-                  <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 leading-relaxed">
-                    Masuk ke bagian **Layar Pengelola** untuk mengisi daftar pemain secara manual lalu acak bagan turnamen untuk menyimulasikan pertandingan.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )
         )}
 
         {/* TAB 3: MATCH RECORDS / HISTORY */}

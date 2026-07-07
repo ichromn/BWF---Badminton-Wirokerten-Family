@@ -67,6 +67,25 @@ export interface SpectatorComment {
   avatarColor: string;
 }
 
+export interface GroupStanding {
+  playerId: string;
+  playerName: string;
+  club: string;
+  played: number;
+  won: number;
+  lost: number;
+  setsWon: number;
+  setsLost: number;
+  pointsWon: number;
+  pointsLost: number;
+}
+
+export interface TournamentGroup {
+  id: string; // e.g. "A", "B"
+  name: string; // e.g. "Grup A"
+  playerIds: string[];
+}
+
 export interface Tournament {
   id: string;
   name: string;
@@ -76,6 +95,8 @@ export interface Tournament {
   brackets: BracketNode[];
   createdAt: string;
   customDate?: string;
+  type?: 'knockout' | 'group'; // default 'knockout'
+  groups?: TournamentGroup[];
 }
 
 export interface ServerState {
