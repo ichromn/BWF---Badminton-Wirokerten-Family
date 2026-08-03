@@ -958,29 +958,32 @@ async function startServer() {
   app.post("/api/tournaments", (req, res) => {
     const { name, drawSize, playerIds, customDate, type, groupCount } = req.body;
     const isGroupType = type === 'group';
-    const size = Number(drawSize);
+    const size = Number(drawSize) || 8;
     if (!name || name.trim() === "") {
       return res.status(400).json({ error: "Nama turnamen wajib diisi." });
     }
-    if (!isGroupType) {
-      if (![4, 8, 16, 32, 64].includes(size)) {
-        return res.status(400).json({ error: "Ukuran turnamen harus 4, 8, 16, 32, atau 64 atlet." });
-      }
-    }
 
     const pIds = playerIds || [];
-    if (!isGroupType && pIds.length > 0 && pIds.length > size) {
-      return res.status(400).json({ error: `Jumlah pemain tidak boleh melebihi ukuran braket (${size} atlet).` });
-    }
-
     const tDate = customDate || new Date().toISOString().split('T')[0];
     const newTournamentId = `t-${generateId()}`;
     const hasPlayers = pIds.length > 0;
 
+    let calcDrawSize = size;
+    if (!isGroupType && hasPlayers) {
+      const pCount = pIds.length;
+      if (pCount > 32) calcDrawSize = 64;
+      else if (pCount > 16) calcDrawSize = 32;
+      else if (pCount > 8) calcDrawSize = 16;
+      else if (pCount > 4) calcDrawSize = 8;
+      else calcDrawSize = 4;
+    } else if (isGroupType) {
+      calcDrawSize = pIds.length;
+    }
+
     const newTournament: Tournament = {
       id: newTournamentId,
       name,
-      drawSize: isGroupType ? pIds.length : size,
+      drawSize: calcDrawSize,
       playerIds: pIds,
       matches: [],
       brackets: [],
@@ -1007,12 +1010,12 @@ async function startServer() {
         // Run draw logic!
         const selectedPlayers = state.players.filter(p => pIds.includes(p.id));
         // Run seeded draw logic to place top seeds top-down and separate them
-        const shuffled = performSeededDraw(selectedPlayers, size);
+        const shuffled = performSeededDraw(selectedPlayers, calcDrawSize);
 
-        const { matches, brackets } = buildBracketAndMatches(newTournamentId, size, shuffled, tDate);
+        const { matches, brackets } = buildBracketAndMatches(newTournamentId, calcDrawSize, shuffled, tDate);
         newTournament.matches = matches;
         newTournament.brackets = brackets;
-        addNotification(`🏆 Turnamen baru dibuat: ${name} dengan ${pIds.length} pemain (Braket ${size} Atlet) dan langsung diaktifkan!`, 'system');
+        addNotification(`🏆 Turnamen baru dibuat: ${name} dengan ${pIds.length} pemain (Braket ${calcDrawSize} Atlet) dan langsung diaktifkan!`, 'system');
       }
     } else {
       addNotification(`🏆 Turnamen baru dibuat: ${name} (${isGroupType ? 'Sistem Grup' : 'Braket'} Kosong, susun pemain belakangan)`, 'system');

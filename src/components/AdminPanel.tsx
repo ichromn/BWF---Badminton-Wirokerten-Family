@@ -421,16 +421,21 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
       .slice(0, size)
       .map(p => p.id);
     setSelectedPlayerIds(ids);
-    setDrawSize(size);
-    setSuccess(`Dipilih ${size} pemain acak untuk pengundian!`);
+    setSuccess(`Dipilih ${ids.length} pemain acak untuk pengundian!`);
+  };
+
+  const handleSelectAllPlayers = () => {
+    const ids = serverState.players.map(p => p.id);
+    setSelectedPlayerIds(ids);
+    setSuccess(`Semua ${ids.length} pemain terpilih untuk pengundian!`);
   };
 
   const togglePlayerSelection = (playerId: string) => {
     if (selectedPlayerIds.includes(playerId)) {
       setSelectedPlayerIds(prev => prev.filter(id => id !== playerId));
     } else {
-      if (!isActiveGroupType && selectedPlayerIds.length >= drawSize) {
-        setError(`Batas pengundian adalah ${drawSize} pemain. Hapus pemain lain terlebih dahulu atau ubah ukuran braket.`);
+      if (selectedPlayerIds.length >= 64) {
+        setError(`Batas pengundian maksimum adalah 64 pemain.`);
         return;
       }
       setSelectedPlayerIds(prev => [...prev, playerId]);
@@ -439,14 +444,13 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
 
   // Perform Random Tournament Draw
   const handleDrawTournament = async () => {
-    if (!isActiveGroupType && selectedPlayerIds.length > drawSize) {
-      setError(`Jumlah pemain terpilih (${selectedPlayerIds.length}) melebihi ukuran braket (${drawSize}).`);
-      return;
-    }
     if (selectedPlayerIds.length < 2) {
       setError(`Harap pilih minimal 2 pemain untuk melakukan pengundian.`);
       return;
     }
+
+    const pCount = selectedPlayerIds.length;
+    const calcBracket = pCount > 32 ? 64 : pCount > 16 ? 32 : pCount > 8 ? 16 : pCount > 4 ? 8 : 4;
 
     setIsDrawing(true);
     try {
@@ -463,7 +467,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
 
       setSuccess(isActiveGroupType 
         ? `🎉 Turnamen Fase Grup berhasil diundi dengan ${selectedPlayerIds.length} pemain! Grup dan jadwal pertandingan telah dibuat.`
-        : `🎉 Turnamen berhasil diundi dengan ${drawSize} pemain! Papan braket telah dibuat.`
+        : `🎉 Turnamen berhasil diundi dengan ${selectedPlayerIds.length} atlet! (Struktur Braket ${calcBracket} Slot dibuat secara otomatis).`
       );
       setSelectedPlayerIds([]);
       onRefresh();
@@ -1253,46 +1257,65 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
           </div>
 
           <div className="space-y-4">
-            {!isActiveGroupType && (
+            {/* Informational banner for flexible draw */}
+            <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-lg p-3 text-emerald-900 text-[11px] leading-relaxed flex items-start gap-2.5">
+              <span className="text-base leading-none">✨</span>
               <div>
-                <label className="block text-[10px] font-mono font-bold text-slate-450 uppercase tracking-widest mb-2.5">Ukuran Turnamen (Braket)</label>
-                <div className="flex flex-wrap gap-2">
-                  {[4, 8, 16, 32].map((size) => (
-                    <button
-                      key={size}
-                      type="button"
-                      onClick={() => {
-                        setDrawSize(size);
-                        setSelectedPlayerIds([]);
-                      }}
-                      className={`flex-1 min-w-[70px] py-2.5 px-3 text-xs font-mono font-bold rounded-lg border transition-all cursor-pointer ${
-                        drawSize === size
-                          ? 'bg-emerald-800 text-white border-emerald-800 shadow-[0_2px_8px_rgba(6,95,70,0.25)]'
-                          : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100/60'
-                      }`}
-                    >
-                      {size === 4 ? 'SEMIFINAL (4)' : size === 8 ? 'PEREMPAT (8)' : `${size} ATLET`}
-                    </button>
-                  ))}
-                </div>
+                <p className="font-bold text-emerald-950">Undian Bebas / Fleksibel Berapapun Atlet</p>
+                <p className="text-[10px] text-emerald-800/90 mt-0.5">
+                  Anda bebas memilih berapapun jumlah atlet (minimal 2 atlet). Sistem akan secara otomatis menyesuaikan skema braket eliminasi (dengan slot BYE jika jumlah atlet bukan kelipatan genap).
+                </p>
               </div>
-            )}
+            </div>
 
-            <div className="bg-slate-50 p-3 rounded-lg flex items-center justify-between border border-slate-200 font-mono">
-              <span className="text-[11px] text-slate-500 font-medium">
-                {isActiveGroupType ? (
-                  <>Pemain Terpilih: <span className="text-emerald-800 font-bold">{selectedPlayerIds.length} Atlet</span> (Sistem Grup)</>
-                ) : (
-                  <>Pemain Terpilih: <span className="text-emerald-800 font-bold">{selectedPlayerIds.length} / {drawSize}</span></>
+            {/* Quick Selection Buttons */}
+            <div>
+              <label className="block text-[10px] font-mono font-bold text-slate-450 uppercase tracking-widest mb-2">Pilih Cepat Atlet Acak</label>
+              <div className="flex flex-wrap gap-1.5">
+                {[4, 8, 16, 32].map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    disabled={serverState.players.length < size}
+                    onClick={() => handleQuickSelect(size)}
+                    className="py-1.5 px-2.5 text-[10px] font-mono font-bold rounded-md border border-slate-200 bg-slate-50 text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                  >
+                    {size} Acak
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={handleSelectAllPlayers}
+                  className="py-1.5 px-2.5 text-[10px] font-mono font-bold rounded-md border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition-all cursor-pointer"
+                >
+                  Pilih Semua ({serverState.players.length})
+                </button>
+                {selectedPlayerIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPlayerIds([])}
+                    className="py-1.5 px-2.5 text-[10px] font-mono font-bold rounded-md border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-all cursor-pointer"
+                  >
+                    Reset
+                  </button>
                 )}
+              </div>
+            </div>
+
+            <div className="bg-slate-50 p-3 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between border border-slate-200 font-mono gap-1.5">
+              <span className="text-[11px] text-slate-600 font-medium">
+                Pemain Terpilih: <span className="text-emerald-800 font-bold text-xs">{selectedPlayerIds.length} Atlet</span>
               </span>
-              <button
-                type="button"
-                onClick={() => handleQuickSelect(isActiveGroupType ? 8 : drawSize)}
-                className="text-[10px] text-emerald-800 hover:text-emerald-700 font-bold flex items-center gap-1 cursor-pointer bg-transparent border-none"
-              >
-                <Users className="w-3.5 h-3.5" /> Ambil {isActiveGroupType ? '8' : drawSize} Acak
-              </button>
+              {!isActiveGroupType && selectedPlayerIds.length >= 2 && (
+                <span className="text-[10px] bg-emerald-100 text-emerald-850 px-2 py-0.5 rounded border border-emerald-200 font-bold">
+                  Braket Otomatis: {selectedPlayerIds.length > 32 ? 64 : selectedPlayerIds.length > 16 ? 32 : selectedPlayerIds.length > 8 ? 16 : selectedPlayerIds.length > 4 ? 8 : 4} Slot
+                  {selectedPlayerIds.length < (selectedPlayerIds.length > 32 ? 64 : selectedPlayerIds.length > 16 ? 32 : selectedPlayerIds.length > 8 ? 16 : selectedPlayerIds.length > 4 ? 8 : 4) && (
+                    <span className="text-amber-800 ml-1 font-normal">
+                      ({(selectedPlayerIds.length > 32 ? 64 : selectedPlayerIds.length > 16 ? 32 : selectedPlayerIds.length > 8 ? 16 : selectedPlayerIds.length > 4 ? 8 : 4) - selectedPlayerIds.length} BYE)
+                    </span>
+                  )}
+                </span>
+              )}
             </div>
 
             {/* List of registered players for selection */}
@@ -1333,11 +1356,11 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
             <button
               type="button"
               onClick={handleDrawTournament}
-              disabled={isDrawing || (!isActiveGroupType && selectedPlayerIds.length !== drawSize) || selectedPlayerIds.length < 2}
+              disabled={isDrawing || selectedPlayerIds.length < 2}
               className="w-full bg-emerald-800 hover:bg-emerald-700 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-display font-bold text-xs uppercase tracking-wider py-3 px-4 rounded-lg shadow-[0_2px_8px_rgba(6,95,70,0.25)] transition-all flex items-center justify-center gap-2 cursor-pointer border-none"
             >
               <Shuffle className="w-4 h-4" />
-              {isDrawing ? "MENGUNDI..." : "UNDI TURNAMEN SEKARANG"}
+              {isDrawing ? "MENGUNDI..." : `UNDI ${selectedPlayerIds.length > 0 ? selectedPlayerIds.length : ''} ATLET SEKARANG`}
             </button>
           </div>
         </div>

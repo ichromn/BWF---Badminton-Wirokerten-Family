@@ -848,18 +848,24 @@ function handleMockRequest(urlStr: string, init?: RequestInit): Response {
     // 7. POST /api/tournament/draw
     if (path === '/api/tournament/draw' && method === 'POST') {
       const { playerIds } = bodyData;
-      const size = playerIds ? playerIds.length : 0;
       
       if (!playerIds || !Array.isArray(playerIds) || playerIds.length < 2) {
         return createJsonResponse({ error: "Harap pilih minimal 2 pemain untuk diundi." }, 400);
       }
+      if (playerIds.length > 64) {
+        return createJsonResponse({ error: "Jumlah pemain maksimal untuk diundi adalah 64." }, 400);
+      }
+
+      const pCount = playerIds.length;
+      let bracketSize = 4;
+      if (pCount > 32) bracketSize = 64;
+      else if (pCount > 16) bracketSize = 32;
+      else if (pCount > 8) bracketSize = 16;
+      else if (pCount > 4) bracketSize = 8;
+      else bracketSize = 4;
 
       const activeTournament = state.tournaments.find(t => t.id === state.activeTournamentId) || state.tournaments[0];
       const isGroupType = activeTournament ? activeTournament.type === 'group' : false;
-
-      if (!isGroupType && ![4, 8, 16, 32, 64].includes(size)) {
-        return createJsonResponse({ error: "Harap pilih tepat 4, 8, 16, 32, atau 64 pemain untuk diundi sistem gugur." }, 400);
-      }
 
       const selectedPlayers = state.players.filter(p => playerIds.includes(p.id));
       if (selectedPlayers.length !== playerIds.length) {
@@ -895,10 +901,11 @@ function handleMockRequest(urlStr: string, init?: RequestInit): Response {
             groups: groups
           });
         } else {
-          const shuffled = performSeededDraw(selectedPlayers, size);
-          addNotification(state, `Pengundian turnamen acak dimulai dengan ${shuffled.length} pemain!`, 'system');
+          const shuffled = performSeededDraw(selectedPlayers, bracketSize);
+          activeTournament.drawSize = bracketSize;
+          addNotification(state, `Pengundian turnamen acak selesai dengan ${playerIds.length} atlet (Otomatis Braket ${bracketSize})!`, 'system');
 
-          const { matches, brackets } = buildBracketAndMatches("random", size, shuffled, defaultDateStr);
+          const { matches, brackets } = buildBracketAndMatches("random", bracketSize, shuffled, defaultDateStr);
           activeTournament.matches = matches;
           activeTournament.brackets = brackets;
           activeTournament.groups = [];
@@ -921,29 +928,32 @@ function handleMockRequest(urlStr: string, init?: RequestInit): Response {
     if (path === '/api/tournaments' && method === 'POST') {
       const { name, drawSize, playerIds, customDate, type, groupCount } = bodyData;
       const isGroupType = type === 'group';
-      const size = Number(drawSize);
+      const size = Number(drawSize) || 8;
       if (!name || name.trim() === "") {
         return createJsonResponse({ error: "Nama turnamen wajib diisi." }, 400);
       }
-      if (!isGroupType) {
-        if (![4, 8, 16, 32, 64].includes(size)) {
-          return createJsonResponse({ error: "Ukuran turnamen harus 4, 8, 16, 32, atau 64 atlet." }, 400);
-        }
-      }
 
       const pIds = playerIds || [];
-      if (!isGroupType && pIds.length > 0 && pIds.length !== size) {
-        return createJsonResponse({ error: `Harap pilih tepat ${size} atlet untuk langsung mengundi, atau kosongkan jika ingin menyusun pemain belakangan.` }, 400);
-      }
-
       const tDate = customDate || new Date().toISOString().split('T')[0];
       const newTournamentId = `t-${generateId()}`;
       const hasPlayers = pIds.length > 0;
       
+      let calcDrawSize = size;
+      if (!isGroupType && hasPlayers) {
+        const pCount = pIds.length;
+        if (pCount > 32) calcDrawSize = 64;
+        else if (pCount > 16) calcDrawSize = 32;
+        else if (pCount > 8) calcDrawSize = 16;
+        else if (pCount > 4) calcDrawSize = 8;
+        else calcDrawSize = 4;
+      } else if (isGroupType) {
+        calcDrawSize = pIds.length;
+      }
+
       const newTournament: Tournament = {
         id: newTournamentId,
         name,
-        drawSize: isGroupType ? pIds.length : size,
+        drawSize: calcDrawSize,
         playerIds: pIds,
         matches: [],
         brackets: [],
@@ -966,13 +976,13 @@ function handleMockRequest(urlStr: string, init?: RequestInit): Response {
           addNotification(state, `🏆 Turnamen baru dibuat: ${name} (Sistem Grup - ${groups.length} Grup, ${pIds.length} Atlet) dan langsung diaktifkan!`, 'system');
         } else {
           const selectedPlayers = state.players.filter(p => pIds.includes(p.id));
-          const shuffled = performSeededDraw(selectedPlayers, size);
+          const shuffled = performSeededDraw(selectedPlayers, calcDrawSize);
 
-          const { matches, brackets } = buildBracketAndMatches(newTournamentId, size, shuffled, tDate);
+          const { matches, brackets } = buildBracketAndMatches(newTournamentId, calcDrawSize, shuffled, tDate);
           newTournament.matches = matches;
           newTournament.brackets = brackets;
 
-          addNotification(state, `🏆 Turnamen baru dibuat: ${name} (${size} Atlet) dan langsung diaktifkan!`, 'system');
+          addNotification(state, `🏆 Turnamen baru dibuat: ${name} (${pIds.length} Atlet, Braket ${calcDrawSize}) dan langsung diaktifkan!`, 'system');
         }
       } else {
         addNotification(state, `🏆 Turnamen baru dibuat: ${name} (${isGroupType ? 'Sistem Grup' : 'Braket'} Kosong, susun pemain belakangan)`, 'system');
