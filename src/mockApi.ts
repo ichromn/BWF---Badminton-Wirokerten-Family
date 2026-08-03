@@ -38,6 +38,17 @@ const DEFAULT_NOTIFICATIONS: MatchNotification[] = [
 
 const DEFAULT_TOURNAMENT_ID = "t-utama";
 
+// Helper to calculate next power of 2 bracket size for any player count
+function calculateBracketSize(pCount: number): number {
+  if (pCount <= 1) return 4;
+  if (pCount === 2) return 2;
+  let size = 2;
+  while (size < pCount) {
+    size *= 2;
+  }
+  return size;
+}
+
 // Helper to perform a proper seeded draw (avoiding early top seed match-ups)
 function performSeededDraw(selectedPlayers: Player[], size: number): Player[] {
   const seeded = selectedPlayers.filter(p => p.seed !== undefined && p.seed !== null && p.seed > 0);
@@ -168,14 +179,8 @@ function buildBracketAndMatches(tournamentId: string, drawSize: number, shuffled
   const brackets: BracketNode[] = [];
   const nowStr = new Date().toISOString();
 
-  // Determine the next power of 2 of shuffled.length (min 4)
-  let actualDrawSize = 4;
-  const pCount = shuffled.length;
-  if (pCount > 32) actualDrawSize = 64;
-  else if (pCount > 16) actualDrawSize = 32;
-  else if (pCount > 8) actualDrawSize = 16;
-  else if (pCount > 4) actualDrawSize = 8;
-  else actualDrawSize = 4;
+  // Determine the next power of 2 for shuffled.length dynamically
+  const actualDrawSize = calculateBracketSize(shuffled.length);
 
   // Pad players with "BYE (Free Pass)"
   const paddedPlayers = [...shuffled];
@@ -197,7 +202,9 @@ function buildBracketAndMatches(tournamentId: string, drawSize: number, shuffled
     { roundIndex: 2, prefix: 'q', name: 'Perempat Final' },
     { roundIndex: 3, prefix: 'r', name: 'Babak 16 Besar' },
     { roundIndex: 4, prefix: 't', name: 'Babak 32 Besar' },
-    { roundIndex: 5, prefix: 'x', name: 'Babak 64 Besar' }
+    { roundIndex: 5, prefix: 'x', name: 'Babak 64 Besar' },
+    { roundIndex: 6, prefix: 'y', name: 'Babak 128 Besar' },
+    { roundIndex: 7, prefix: 'z', name: 'Babak 256 Besar' }
   ];
 
   const totalRounds = Math.log2(actualDrawSize); // e.g. 3 for size 8
@@ -887,17 +894,9 @@ function handleMockRequest(urlStr: string, init?: RequestInit): Response {
       if (!playerIds || !Array.isArray(playerIds) || playerIds.length < 2) {
         return createJsonResponse({ error: "Harap pilih minimal 2 pemain untuk diundi." }, 400);
       }
-      if (playerIds.length > 64) {
-        return createJsonResponse({ error: "Jumlah pemain maksimal untuk diundi adalah 64." }, 400);
-      }
 
       const pCount = playerIds.length;
-      let bracketSize = 4;
-      if (pCount > 32) bracketSize = 64;
-      else if (pCount > 16) bracketSize = 32;
-      else if (pCount > 8) bracketSize = 16;
-      else if (pCount > 4) bracketSize = 8;
-      else bracketSize = 4;
+      const bracketSize = calculateBracketSize(pCount);
 
       const activeTournament = state.tournaments.find(t => t.id === state.activeTournamentId) || state.tournaments[0];
       const isGroupType = activeTournament ? activeTournament.type === 'group' : false;
@@ -975,12 +974,7 @@ function handleMockRequest(urlStr: string, init?: RequestInit): Response {
       
       let calcDrawSize = size;
       if (!isGroupType && hasPlayers) {
-        const pCount = pIds.length;
-        if (pCount > 32) calcDrawSize = 64;
-        else if (pCount > 16) calcDrawSize = 32;
-        else if (pCount > 8) calcDrawSize = 16;
-        else if (pCount > 4) calcDrawSize = 8;
-        else calcDrawSize = 4;
+        calcDrawSize = calculateBracketSize(pIds.length);
       } else if (isGroupType) {
         calcDrawSize = pIds.length;
       }

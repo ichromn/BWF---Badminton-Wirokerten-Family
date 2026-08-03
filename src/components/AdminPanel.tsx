@@ -430,14 +430,18 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
     setSuccess(`Semua ${ids.length} pemain terpilih untuk pengundian!`);
   };
 
+  const getCalcBracketSize = (count: number) => {
+    if (count <= 1) return 4;
+    if (count === 2) return 2;
+    let size = 2;
+    while (size < count) size *= 2;
+    return size;
+  };
+
   const togglePlayerSelection = (playerId: string) => {
     if (selectedPlayerIds.includes(playerId)) {
       setSelectedPlayerIds(prev => prev.filter(id => id !== playerId));
     } else {
-      if (selectedPlayerIds.length >= 64) {
-        setError(`Batas pengundian maksimum adalah 64 pemain.`);
-        return;
-      }
       setSelectedPlayerIds(prev => [...prev, playerId]);
     }
   };
@@ -450,7 +454,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
     }
 
     const pCount = selectedPlayerIds.length;
-    const calcBracket = pCount > 32 ? 64 : pCount > 16 ? 32 : pCount > 8 ? 16 : pCount > 4 ? 8 : 4;
+    const calcBracket = getCalcBracketSize(pCount);
 
     setIsDrawing(true);
     try {
@@ -467,7 +471,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
 
       setSuccess(isActiveGroupType 
         ? `🎉 Turnamen Fase Grup berhasil diundi dengan ${selectedPlayerIds.length} pemain! Grup dan jadwal pertandingan telah dibuat.`
-        : `🎉 Turnamen berhasil diundi dengan ${selectedPlayerIds.length} atlet! (Struktur Braket ${calcBracket} Slot dibuat secara otomatis).`
+        : `🎉 Turnamen berhasil diundi dengan ${selectedPlayerIds.length} atlet! (Struktur Braket Otomatis ${calcBracket} Slot dibuat secara bebas dengan BYE jika ada posisi kosong).`
       );
       setSelectedPlayerIds([]);
       onRefresh();
@@ -492,7 +496,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
     }
 
     const pCount = idsToUse.length;
-    const calcBracket = pCount > 32 ? 64 : pCount > 16 ? 32 : pCount > 8 ? 16 : pCount > 4 ? 8 : 4;
+    const calcBracket = getCalcBracketSize(pCount);
 
     setIsDrawing(true);
     try {
@@ -507,7 +511,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
         throw new Error(err.error || "Gagal mengulangi pengundian.");
       }
 
-      setSuccess(`🔄 Pengundian berhasil diulangi! Bagan pertandingan ${pCount} atlet telah dikocok ulang secara acak (${calcBracket} Slot Braket).`);
+      setSuccess(`🔄 Pengundian berhasil diulangi! Bagan pertandingan ${pCount} atlet telah dikocok ulang secara bebas (${calcBracket} Slot Braket).`);
       setSelectedPlayerIds([]);
       onRefresh();
     } catch (err: any) {
@@ -1352,10 +1356,10 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
               </span>
               {!isActiveGroupType && selectedPlayerIds.length >= 2 && (
                 <span className="text-[10px] bg-emerald-100 text-emerald-850 px-2 py-0.5 rounded border border-emerald-200 font-bold">
-                  Braket Otomatis: {selectedPlayerIds.length > 32 ? 64 : selectedPlayerIds.length > 16 ? 32 : selectedPlayerIds.length > 8 ? 16 : selectedPlayerIds.length > 4 ? 8 : 4} Slot
-                  {selectedPlayerIds.length < (selectedPlayerIds.length > 32 ? 64 : selectedPlayerIds.length > 16 ? 32 : selectedPlayerIds.length > 8 ? 16 : selectedPlayerIds.length > 4 ? 8 : 4) && (
+                  Braket Otomatis Bebas: {getCalcBracketSize(selectedPlayerIds.length)} Slot
+                  {selectedPlayerIds.length < getCalcBracketSize(selectedPlayerIds.length) && (
                     <span className="text-amber-800 ml-1 font-normal">
-                      ({(selectedPlayerIds.length > 32 ? 64 : selectedPlayerIds.length > 16 ? 32 : selectedPlayerIds.length > 8 ? 16 : selectedPlayerIds.length > 4 ? 8 : 4) - selectedPlayerIds.length} BYE)
+                      ({getCalcBracketSize(selectedPlayerIds.length) - selectedPlayerIds.length} BYE Otomatis)
                     </span>
                   )}
                 </span>
