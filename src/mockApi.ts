@@ -774,7 +774,7 @@ function handleMockRequest(urlStr: string, init?: RequestInit): Response {
         const club = clubs[Math.floor(Math.random() * clubs.length)];
         
         let seed: number | undefined = undefined;
-        if (i < 8) seed = i + 1;
+        if (i < 16) seed = i + 1;
 
         const newP: Player = {
           id: `p-gen-${generateId()}`,

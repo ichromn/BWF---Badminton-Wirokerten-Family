@@ -1201,14 +1201,14 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
               />
             </div>
             <div>
-              <label className="block text-[10px] font-mono font-bold text-slate-450 uppercase tracking-widest mb-1.5">Unggulan / Seed (Opsional)</label>
+              <label className="block text-[10px] font-mono font-bold text-slate-450 uppercase tracking-widest mb-1.5">Unggulan / Seed (Opsional, Maks. 16)</label>
               <input
                 type="number"
                 min="1"
-                max="8"
+                max="16"
                 value={playerSeed}
                 onChange={e => setPlayerSeed(e.target.value)}
-                placeholder="Contoh: 1 (Kosongkan jika bukan unggulan)"
+                placeholder="Contoh: 1 (Nilai 1 - 16, Kosongkan jika lain)"
                 className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-800 placeholder-slate-400 font-medium font-mono"
               />
             </div>
@@ -1443,14 +1443,14 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[9px] font-bold text-slate-400 uppercase">Unggulan / Seed (Opsional)</label>
+                        <label className="text-[9px] font-bold text-slate-400 uppercase">Unggulan / Seed (Maks. 16)</label>
                         <input
                           type="number"
                           min="1"
-                          max="8"
+                          max="16"
                           value={editingPlayerSeed}
                           onChange={(e) => setEditingPlayerSeed(e.target.value)}
-                          placeholder="Kosongkan jika bukan unggulan"
+                          placeholder="Nilai 1-16 (Kosongkan jika bukan unggulan)"
                           className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded text-slate-800 font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
                         />
                       </div>

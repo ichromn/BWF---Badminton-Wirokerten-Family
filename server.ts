@@ -690,8 +690,8 @@ async function startServer() {
       const club = clubs[Math.floor(Math.random() * clubs.length)];
       
       let seed: number | undefined = undefined;
-      // We can seed the first 8 players we generate as seeds 1-8
-      if (i < 8) {
+      // We can seed the first 16 players we generate as seeds 1-16
+      if (i < 16) {
         seed = i + 1;
       }
 
