@@ -478,6 +478,45 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
     }
   };
 
+  // Re-draw Tournament (Fitur Ulangi Pengundian / Kocok Ulang)
+  const handleRedrawTournament = async (targetPlayerIds?: string[]) => {
+    let idsToUse = targetPlayerIds || (selectedPlayerIds.length >= 2 ? selectedPlayerIds : activeT?.playerIds);
+    
+    if (!idsToUse || idsToUse.length < 2) {
+      setError(`Harap pilih minimal 2 atlet untuk melakukan ulangi pengundian.`);
+      return;
+    }
+
+    if (!confirm(`🔄 Apakah Anda yakin ingin MENGULANGI PENGUNDIAN untuk turnamen ${activeT?.name || ''}? Semua bagan pertandingan, jadwal, dan skor lama akan dikocok ulang!`)) {
+      return;
+    }
+
+    const pCount = idsToUse.length;
+    const calcBracket = pCount > 32 ? 64 : pCount > 16 ? 32 : pCount > 8 ? 16 : pCount > 4 ? 8 : 4;
+
+    setIsDrawing(true);
+    try {
+      const res = await fetch('/api/tournament/draw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerIds: idsToUse }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Gagal mengulangi pengundian.");
+      }
+
+      setSuccess(`🔄 Pengundian berhasil diulangi! Bagan pertandingan ${pCount} atlet telah dikocok ulang secara acak (${calcBracket} Slot Braket).`);
+      setSelectedPlayerIds([]);
+      onRefresh();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsDrawing(false);
+    }
+  };
+
   // Start a match
   const handleStartMatch = async (matchId: string) => {
     try {
@@ -1270,9 +1309,9 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
 
             {/* Quick Selection Buttons */}
             <div>
-              <label className="block text-[10px] font-mono font-bold text-slate-450 uppercase tracking-widest mb-2">Pilih Cepat Atlet Acak</label>
+              <label className="block text-[10px] font-mono font-bold text-slate-450 uppercase tracking-widest mb-2">Pilih Cepat Jumlah Atlet Acak (Ganjil / Genap)</label>
               <div className="flex flex-wrap gap-1.5">
-                {[4, 8, 16, 32].map((size) => (
+                {[3, 5, 7, 8, 16, 32].map((size) => (
                   <button
                     key={size}
                     type="button"
@@ -1280,7 +1319,7 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
                     onClick={() => handleQuickSelect(size)}
                     className="py-1.5 px-2.5 text-[10px] font-mono font-bold rounded-md border border-slate-200 bg-slate-50 text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
                   >
-                    {size} Acak
+                    {size} {size % 2 === 1 ? 'Ganjil' : 'Genap'}
                   </button>
                 ))}
                 <button
@@ -1305,6 +1344,11 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
             <div className="bg-slate-50 p-3 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between border border-slate-200 font-mono gap-1.5">
               <span className="text-[11px] text-slate-600 font-medium">
                 Pemain Terpilih: <span className="text-emerald-800 font-bold text-xs">{selectedPlayerIds.length} Atlet</span>
+                {selectedPlayerIds.length > 0 && selectedPlayerIds.length % 2 === 1 && (
+                  <span className="ml-1 text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded border border-amber-200 font-bold">
+                    Jumlah Ganjil
+                  </span>
+                )}
               </span>
               {!isActiveGroupType && selectedPlayerIds.length >= 2 && (
                 <span className="text-[10px] bg-emerald-100 text-emerald-850 px-2 py-0.5 rounded border border-emerald-200 font-bold">
@@ -1317,6 +1361,24 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
                 </span>
               )}
             </div>
+
+            {/* Banner for existing active tournament draw re-roll */}
+            {activeT && activeT.playerIds && activeT.playerIds.length >= 2 && (
+              <div className="bg-amber-50/80 border border-amber-200 rounded-lg p-2.5 flex items-center justify-between gap-2 text-amber-900 font-mono text-[11px]">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4 text-amber-700 animate-spin-slow" />
+                  <span>Turnamen Aktif ({activeT.name}) saat ini berisi <strong>{activeT.playerIds.length} Atlet</strong></span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRedrawTournament(activeT.playerIds)}
+                  disabled={isDrawing}
+                  className="py-1 px-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded text-[10px] font-bold border-none cursor-pointer transition-all shadow-sm flex items-center gap-1"
+                >
+                  <Shuffle className="w-3 h-3" /> Kocok Ulang Turnamen Ini
+                </button>
+              </div>
+            )}
 
             {/* List of registered players for selection */}
             <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1 border border-slate-200 rounded-lg p-2 bg-slate-50/40">
@@ -1353,15 +1415,27 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
               })}
             </div>
 
-            <button
-              type="button"
-              onClick={handleDrawTournament}
-              disabled={isDrawing || selectedPlayerIds.length < 2}
-              className="w-full bg-emerald-800 hover:bg-emerald-700 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-display font-bold text-xs uppercase tracking-wider py-3 px-4 rounded-lg shadow-[0_2px_8px_rgba(6,95,70,0.25)] transition-all flex items-center justify-center gap-2 cursor-pointer border-none"
-            >
-              <Shuffle className="w-4 h-4" />
-              {isDrawing ? "MENGUNDI..." : `UNDI ${selectedPlayerIds.length > 0 ? selectedPlayerIds.length : ''} ATLET SEKARANG`}
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={handleDrawTournament}
+                disabled={isDrawing || selectedPlayerIds.length < 2}
+                className="w-full bg-emerald-800 hover:bg-emerald-700 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-display font-bold text-xs uppercase tracking-wider py-3 px-4 rounded-lg shadow-[0_2px_8px_rgba(6,95,70,0.25)] transition-all flex items-center justify-center gap-2 cursor-pointer border-none"
+              >
+                <Shuffle className="w-4 h-4" />
+                {isDrawing ? "MENGUNDI..." : `UNDI ${selectedPlayerIds.length > 0 ? selectedPlayerIds.length : ''} ATLET BARU`}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleRedrawTournament()}
+                disabled={isDrawing || (selectedPlayerIds.length < 2 && (!activeT?.playerIds || activeT.playerIds.length < 2))}
+                className="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-display font-bold text-xs uppercase tracking-wider py-3 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer border-none"
+              >
+                <RefreshCw className="w-4 h-4" />
+                {isDrawing ? "KOCOK ULANG..." : "🔄 ULANGI PENGUNDIAN"}
+              </button>
+            </div>
           </div>
         </div>
 

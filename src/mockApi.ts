@@ -61,8 +61,18 @@ function performSeededDraw(selectedPlayers: Player[], size: number): Player[] {
   const result: Player[] = new Array(size);
   for (let i = 0; i < size; i++) {
     const playerIndex = seedPattern[i] - 1;
-    if (playerIndex < orderedPlayers.length) {
+    if (playerIndex < orderedPlayers.length && orderedPlayers[playerIndex]) {
       result[i] = orderedPlayers[playerIndex];
+    } else {
+      result[i] = {
+        id: `bye-${Math.random().toString(36).substring(2, 7)}`,
+        name: "BYE (Free Pass)",
+        club: "BWF",
+        matchesPlayed: 0,
+        matchesWon: 0,
+        setsWon: 0,
+        pointsWon: 0
+      };
     }
   }
 
@@ -210,8 +220,8 @@ function buildBracketAndMatches(tournamentId: string, drawSize: number, shuffled
         const p2 = paddedPlayers[i * 2 + 1];
         p1Id = p1?.id || "";
         p2Id = p2?.id || "";
-        p1Name = p1?.name || "Belum ada pemain";
-        p2Name = p2?.name || "Belum ada pemain";
+        p1Name = p1?.name || "BYE (Free Pass)";
+        p2Name = p2?.name || "BYE (Free Pass)";
       } else {
         // Subsequent rounds have "Pemenang [Previous Round Prefix][Index]"
         const prevConfig = ROUND_CONFIGS[r + 1] || { prefix: `b${r + 1}` };
@@ -817,7 +827,32 @@ function handleMockRequest(urlStr: string, init?: RequestInit): Response {
         return createJsonResponse({ error: "Pemain tidak ditemukan." }, 404);
       }
 
-      if (name !== undefined) player.name = name;
+      if (name !== undefined) {
+        player.name = name;
+
+        // Automatically update athlete's name across all matches and bracket nodes
+        const updateMatchNames = (matches: Match[]) => {
+          if (!matches) return;
+          for (const m of matches) {
+            if (m.player1Id === id) m.player1Name = name;
+            if (m.player2Id === id) m.player2Name = name;
+          }
+        };
+        const updateBracketNames = (brackets: BracketNode[]) => {
+          if (!brackets) return;
+          for (const b of brackets) {
+            if (b.player1Id === id) b.player1Name = name;
+            if (b.player2Id === id) b.player2Name = name;
+          }
+        };
+
+        if (state.tournaments) {
+          for (const t of state.tournaments) {
+            if (t.matches) updateMatchNames(t.matches);
+            if (t.brackets) updateBracketNames(t.brackets);
+          }
+        }
+      }
       if (club !== undefined) player.club = club;
       if (matchesPlayed !== undefined) player.matchesPlayed = Number(matchesPlayed);
       if (matchesWon !== undefined) player.matchesWon = Number(matchesWon);
@@ -1071,6 +1106,21 @@ function handleMockRequest(urlStr: string, init?: RequestInit): Response {
       if (customTime !== undefined) match.customTime = customTime;
       if (player1Name !== undefined) match.player1Name = player1Name;
       if (player2Name !== undefined) match.player2Name = player2Name;
+
+      // Sync to bracket nodes
+      const syncBracket = (brackets: BracketNode[]) => {
+        if (!brackets) return;
+        const bNode = brackets.find(b => b.matchId === match.id);
+        if (bNode) {
+          if (player1Name !== undefined) bNode.player1Name = player1Name;
+          if (player2Name !== undefined) bNode.player2Name = player2Name;
+        }
+      };
+      if (state.tournaments) {
+        for (const t of state.tournaments) {
+          if (t.brackets) syncBracket(t.brackets);
+        }
+      }
 
       match.updatedAt = new Date().toISOString();
       saveLocalState(state);
