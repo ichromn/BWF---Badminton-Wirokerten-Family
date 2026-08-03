@@ -256,6 +256,15 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
 
   const liveMatch = serverState.matches.find(m => m.status === 'live');
 
+  const getPlayerClub = (playerId?: string, playerName?: string) => {
+    let found = serverState.players?.find(p => p.id === playerId);
+    if (!found && playerName) {
+      const cleanName = playerName.replace(/⭐\s*SEED\s*\d+/gi, '').replace(/🏆/g, '').trim().toLowerCase();
+      found = serverState.players?.find(p => p.name.toLowerCase().trim() === cleanName);
+    }
+    return found?.club || (playerName?.includes("BYE") || playerName?.includes("Pemenang") ? "BWF" : "Klub Badminton");
+  };
+
   // Handle manual player registration
   const handleAddPlayer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2105,7 +2114,10 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center flex flex-col justify-between">
                   <div>
                     <h4 className="font-display font-black text-emerald-600 truncate text-base">{liveMatch.player1Name}</h4>
-                    <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block mt-1">ATLET 1 (KIRI)</span>
+                    <span className="text-[10px] font-mono text-slate-500 font-bold uppercase tracking-wider block mt-0.5">
+                      {getPlayerClub(liveMatch.player1Id, liveMatch.player1Name)}
+                    </span>
+                    <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider block mt-0.5">ATLET 1 (KIRI)</span>
                   </div>
 
                   <div className="my-6">
@@ -2153,7 +2165,10 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center flex flex-col justify-between">
                   <div>
                     <h4 className="font-display font-black text-indigo-600 truncate text-base">{liveMatch.player2Name}</h4>
-                    <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block mt-1">ATLET 2 (KANAN)</span>
+                    <span className="text-[10px] font-mono text-slate-500 font-bold uppercase tracking-wider block mt-0.5">
+                      {getPlayerClub(liveMatch.player2Id, liveMatch.player2Name)}
+                    </span>
+                    <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider block mt-0.5">ATLET 2 (KANAN)</span>
                   </div>
 
                   <div className="my-6">

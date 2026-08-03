@@ -173,6 +173,23 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
   const matchesToRender = currentTournament.matches || [];
   const bracketsToRender = currentTournament.brackets || [];
 
+  // Helper to dynamically retrieve player name and club from serverState.players
+  const getPlayerInfo = (playerId?: string, playerName?: string) => {
+    let found = serverState.players?.find(p => p.id === playerId);
+    if (!found && playerName) {
+      const cleanName = playerName.replace(/⭐\s*SEED\s*\d+/gi, '').replace(/🏆/g, '').trim().toLowerCase();
+      found = serverState.players?.find(p => p.name.toLowerCase().trim() === cleanName);
+    }
+    return {
+      name: found ? found.name : (playerName || "Belum ditentukan"),
+      club: found && found.club ? found.club : (playerName?.includes("BYE") || playerName?.includes("Pemenang") ? "BWF" : "Klub Badminton")
+    };
+  };
+
+  const getPlayerClub = (playerId?: string, playerName?: string) => {
+    return getPlayerInfo(playerId, playerName).club;
+  };
+
   // Find the first scheduled match id to highlight it as "Next Up"
   const firstScheduledMatchId = (matchesToRender.find(m => m.status === 'scheduled'))?.id || null;
 
@@ -332,7 +349,7 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
               <div className="flex justify-center items-center gap-10 py-6">
                 <div className="text-right">
                   <p className="text-2xl font-display font-black text-slate-900 tracking-tight">{latestCompleted.player1Name}</p>
-                  <p className="text-[10px] font-mono text-slate-500 mt-1 uppercase">SGS Bandung</p>
+                  <p className="text-[10px] font-mono text-slate-500 mt-1 uppercase">{getPlayerClub(latestCompleted.player1Id, latestCompleted.player1Name)}</p>
                 </div>
                 <div className="flex flex-col items-center">
                   <span className="text-[10px] font-mono font-bold text-slate-600 px-2.5 py-1 bg-slate-100 border border-slate-200 rounded mb-2 shadow-inner">VS</span>
@@ -346,7 +363,7 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
                 </div>
                 <div className="text-left">
                   <p className="text-2xl font-display font-black text-slate-900 tracking-tight">{latestCompleted.player2Name}</p>
-                  <p className="text-[10px] font-mono text-slate-500 mt-1 uppercase">PB Tangkas</p>
+                  <p className="text-[10px] font-mono text-slate-500 mt-1 uppercase">{getPlayerClub(latestCompleted.player2Id, latestCompleted.player2Name)}</p>
                 </div>
               </div>
 
@@ -398,7 +415,7 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
             <div>
               <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Men's Double 1</span>
               <h2 className="text-lg font-black text-slate-900 mt-0.5 truncate max-w-[220px]" title={liveMatch.player1Name}>{liveMatch.player1Name}</h2>
-              <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full mt-1 inline-block">SGS Bandung</span>
+              <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full mt-1 inline-block">{getPlayerClub(liveMatch.player1Id, liveMatch.player1Name)}</span>
             </div>
 
             {/* Shrunk Score Display with animation */}
@@ -445,7 +462,7 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
             <div>
               <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Men's Double 2</span>
               <h2 className="text-lg font-black text-slate-900 mt-0.5 truncate max-w-[220px]" title={liveMatch.player2Name}>{liveMatch.player2Name}</h2>
-              <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full mt-1 inline-block">PB Tangkas</span>
+              <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full mt-1 inline-block">{getPlayerClub(liveMatch.player2Id, liveMatch.player2Name)}</span>
             </div>
 
             {/* Shrunk Score Display with animation */}
@@ -1119,7 +1136,7 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
                               }`}>
                                 {match.player1Name || "Belum ditentukan"}
                               </p>
-                              <p className="text-[10px] font-mono text-slate-400 mt-0.5">SGS Bandung</p>
+                              <p className="text-[10px] font-mono text-slate-400 mt-0.5">{getPlayerClub(match.player1Id, match.player1Name)}</p>
                             </div>
                             <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-700 font-display font-bold text-xs flex items-center justify-center shrink-0">
                               P1
@@ -1168,7 +1185,7 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
                               }`}>
                                 {match.player2Name || "Belum ditentukan"}
                               </p>
-                              <p className="text-[10px] font-mono text-slate-400 mt-0.5">PB Tangkas</p>
+                              <p className="text-[10px] font-mono text-slate-400 mt-0.5">{getPlayerClub(match.player2Id, match.player2Name)}</p>
                             </div>
                           </div>
                         </div>
@@ -1605,7 +1622,7 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
                             {match.player1Name}
                             {match.winnerId === match.player1Id && ' 🏆'}
                           </span>
-                          <span className="text-[10px] font-mono text-slate-400">SGS Bandung</span>
+                          <span className="text-[10px] font-mono text-slate-400">{getPlayerClub(match.player1Id, match.player1Name)}</span>
                         </div>
 
                         {/* Versus Divider */}
@@ -1621,7 +1638,7 @@ export default function SpectatorPanel({ serverState }: SpectatorPanelProps) {
                             {match.player2Name}
                             {match.winnerId === match.player2Id && ' 🏆'}
                           </span>
-                          <span className="text-[10px] font-mono text-slate-400">PB Tangkas</span>
+                          <span className="text-[10px] font-mono text-slate-400">{getPlayerClub(match.player2Id, match.player2Name)}</span>
                         </div>
                       </div>
 
