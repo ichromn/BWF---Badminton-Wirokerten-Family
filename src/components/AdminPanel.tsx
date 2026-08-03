@@ -28,6 +28,7 @@ import {
   Calendar,
   Edit,
   Trash2,
+  RotateCcw,
   Zap,
   Tv,
   Video,
@@ -35,7 +36,12 @@ import {
   Cloud,
   Lock,
   Unlock,
-  Settings
+  Settings,
+  Search,
+  Filter,
+  CheckSquare,
+  Square,
+  X
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -59,6 +65,12 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
   const [editingPlayerSeed, setEditingPlayerSeed] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [confirmDeletePlayerId, setConfirmDeletePlayerId] = useState<string | null>(null);
+
+  // Player Filter & Multi-Select Batch Delete State
+  const [playerListSearch, setPlayerListSearch] = useState('');
+  const [playerSeedFilter, setPlayerSeedFilter] = useState<'all' | 'seeded' | 'unseeded'>('all');
+  const [selectedForDeleteIds, setSelectedForDeleteIds] = useState<string[]>([]);
+  const [isBatchDeleting, setIsBatchDeleting] = useState(false);
 
   // Tournament Edit/Delete State
   const [editingTournamentId, setEditingTournamentId] = useState<string | null>(null);
@@ -341,6 +353,110 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
       onRefresh();
     } catch (err: any) {
       setError(err.message);
+    }
+  };
+
+  // Reset all players statistics
+  const handleResetAllPlayerStats = async () => {
+    if (!confirm("📊 Apakah Anda yakin ingin MERESET STATISTIK SEMUA ATLET ke 0? (Main, Menang, Set, dan Poin akan direset ke 0)")) {
+      return;
+    }
+    try {
+      const res = await fetch('/api/players/reset-stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Gagal mereset statistik atlet.");
+      }
+      setSuccess("📊 Statistik semua atlet berhasil direset ke 0!");
+      onRefresh();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  // Reset single player statistics
+  const handleResetSinglePlayerStats = async (playerId: string, playerName: string) => {
+    if (!confirm(`📊 Reset statistik atlet "${playerName}" ke 0?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/players/${playerId}/reset-stats`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Gagal mereset statistik atlet.");
+      }
+      setSuccess(`Statistik atlet "${playerName}" berhasil direset ke 0!`);
+      onRefresh();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  // Filtered players list calculation
+  const filteredPlayersList = (serverState.players || []).filter(player => {
+    const query = playerListSearch.toLowerCase().trim();
+    const matchesQuery = !query || player.name.toLowerCase().includes(query) || player.club.toLowerCase().includes(query);
+    if (!matchesQuery) return false;
+    if (playerSeedFilter === 'seeded') return player.seed && player.seed > 0;
+    if (playerSeedFilter === 'unseeded') return !player.seed || player.seed <= 0;
+    return true;
+  });
+
+  // Batch delete selected players
+  const handleBatchDeletePlayers = async () => {
+    if (selectedForDeleteIds.length === 0) return;
+
+    if (!confirm(`⚠️ Apakah Anda yakin ingin MENGHAPUS ${selectedForDeleteIds.length} atlet terpilih secara bersamaan? Tindakan ini tidak dapat dibatalkan.`)) {
+      return;
+    }
+
+    setIsBatchDeleting(true);
+    try {
+      const res = await fetch('/api/players/batch-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedForDeleteIds })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Gagal menghapus pemain secara massal.");
+      }
+
+      setSuccess(`🎉 Berhasil menghapus ${selectedForDeleteIds.length} atlet terpilih secara bersamaan!`);
+      setSelectedForDeleteIds([]);
+      onRefresh();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsBatchDeleting(false);
+    }
+  };
+
+  const toggleSelectForDelete = (id: string) => {
+    setSelectedForDeleteIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllFilteredForDelete = () => {
+    const filteredIds = filteredPlayersList.map(p => p.id);
+    if (filteredIds.length === 0) return;
+    const allSelected = filteredIds.every(id => selectedForDeleteIds.includes(id));
+    
+    if (allSelected) {
+      // Unselect all filtered
+      setSelectedForDeleteIds(prev => prev.filter(id => !filteredIds.includes(id)));
+    } else {
+      // Select all filtered
+      const newSelection = Array.from(new Set([...selectedForDeleteIds, ...filteredIds]));
+      setSelectedForDeleteIds(newSelection);
     }
   };
 
@@ -1110,9 +1226,19 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
                 <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Kelola, edit, atau hapus atlet dari sistem</p>
               </div>
             </div>
-            <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded">
-              TOTAL: {serverState.players.length}
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleResetAllPlayerStats}
+                className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-1 rounded transition-all cursor-pointer shadow-sm"
+                title="Reset statistik semua atlet ke 0"
+              >
+                <RotateCcw className="w-3 h-3 text-amber-600" /> Reset Statistik All Atlet
+              </button>
+              <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                TOTAL: {serverState.players.length}
+              </span>
+            </div>
           </div>
 
           {/* Quick random player generator section */}
@@ -1153,14 +1279,137 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
             </div>
           </div>
 
-          <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+          {/* Filter & Bulk Select Toolbar */}
+          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 mb-3 space-y-2.5">
+            <div className="flex flex-col sm:flex-row gap-2 items-center justify-between">
+              {/* Search input */}
+              <div className="relative w-full sm:w-64">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Cari nama atlet atau klub..."
+                  value={playerListSearch}
+                  onChange={(e) => setPlayerListSearch(e.target.value)}
+                  className="w-full pl-8 pr-7 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans"
+                />
+                {playerListSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setPlayerListSearch('')}
+                    className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Seed Filter Pill Buttons */}
+              <div className="flex items-center gap-1 w-full sm:w-auto overflow-x-auto text-[10px] font-mono font-bold">
+                <span className="text-slate-400 mr-1 flex items-center gap-0.5 shrink-0">
+                  <Filter className="w-3 h-3" /> Filter:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPlayerSeedFilter('all')}
+                  className={`px-2 py-1 rounded-md border transition-all cursor-pointer whitespace-nowrap ${
+                    playerSeedFilter === 'all'
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  Semua ({serverState.players.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPlayerSeedFilter('seeded')}
+                  className={`px-2 py-1 rounded-md border transition-all cursor-pointer whitespace-nowrap ${
+                    playerSeedFilter === 'seeded'
+                      ? 'bg-amber-600 text-white border-amber-600'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  ⭐ Unggulan ({(serverState.players || []).filter(p => p.seed && p.seed > 0).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPlayerSeedFilter('unseeded')}
+                  className={`px-2 py-1 rounded-md border transition-all cursor-pointer whitespace-nowrap ${
+                    playerSeedFilter === 'unseeded'
+                      ? 'bg-slate-700 text-white border-slate-700'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  Non-Seed ({(serverState.players || []).filter(p => !p.seed || p.seed <= 0).length})
+                </button>
+              </div>
+            </div>
+
+            {/* Selection Status & Actions Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/60 text-[11px]">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleSelectAllFilteredForDelete}
+                  className="inline-flex items-center gap-1.5 font-bold text-slate-700 hover:text-indigo-600 cursor-pointer text-[10px] bg-white border border-slate-200 px-2 py-1 rounded hover:bg-indigo-50/50 transition-all"
+                >
+                  {filteredPlayersList.length > 0 &&
+                  filteredPlayersList.every(p => selectedForDeleteIds.includes(p.id)) ? (
+                    <>
+                      <CheckSquare className="w-3.5 h-3.5 text-indigo-600 fill-indigo-100" />
+                      <span>Batal Pilih Semua</span>
+                    </>
+                  ) : (
+                    <>
+                      <Square className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Pilih Semua Hasil Filter ({filteredPlayersList.length})</span>
+                    </>
+                  )}
+                </button>
+
+                {selectedForDeleteIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedForDeleteIds([])}
+                    className="text-[10px] text-slate-400 hover:text-slate-600 underline cursor-pointer"
+                  >
+                    Kosongkan Pilihan
+                  </button>
+                )}
+              </div>
+
+              {selectedForDeleteIds.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono font-bold text-rose-800 bg-rose-100/80 px-2 py-0.5 rounded border border-rose-200">
+                    {selectedForDeleteIds.length} Atlet Terpilih
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleBatchDeletePlayers}
+                    disabled={isBatchDeleting}
+                    className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 border border-rose-700 px-2.5 py-1 rounded transition-all cursor-pointer shadow-sm disabled:opacity-50"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    {isBatchDeleting ? 'Menghapus...' : `Hapus ${selectedForDeleteIds.length} Terpilih`}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-1">
             {serverState.players.length === 0 ? (
               <p className="text-xs text-slate-400 italic text-center py-6 font-mono">Belum ada atlet yang terdaftar.</p>
+            ) : filteredPlayersList.length === 0 ? (
+              <p className="text-xs text-slate-400 italic text-center py-6 font-mono">Tidak ada atlet yang cocok dengan filter pencarian.</p>
             ) : (
-              serverState.players.map((player) => (
+              filteredPlayersList.map((player) => (
                 <div 
                   key={player.id} 
-                  className="p-3 bg-slate-50 border border-slate-150 rounded-xl hover:bg-slate-100/50 transition-all"
+                  className={`p-3 border rounded-xl transition-all ${
+                    selectedForDeleteIds.includes(player.id)
+                      ? 'bg-indigo-50/60 border-indigo-200 shadow-sm'
+                      : 'bg-slate-50 border-slate-150 hover:bg-slate-100/50'
+                  }`}
                 >
                   {editingPlayerId === player.id ? (
                     <form onSubmit={handleUpdatePlayer} className="space-y-3 font-mono text-xs">
@@ -1237,26 +1486,42 @@ export default function AdminPanel({ serverState, onRefresh, setError, setSucces
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                          <h4 className="text-xs font-bold text-slate-800 truncate">{player.name}</h4>
-                          {player.seed && (
-                            <span className="inline-flex items-center gap-0.5 bg-amber-50 text-amber-700 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border border-amber-200 shrink-0">
-                              ⭐ SEED {player.seed}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[10px] text-amber-600 font-medium truncate font-mono">{player.club}</p>
-                        <div className="flex items-center gap-2 mt-1.5 text-[9px] text-slate-400 font-mono">
-                          <span>Main: <strong className="text-slate-600">{player.matchesPlayed}</strong></span>
-                          <span>•</span>
-                          <span>Menang: <strong className="text-emerald-800">{player.matchesWon}</strong></span>
-                          <span>•</span>
-                          <span>Set: <strong className="text-slate-600">{player.setsWon}</strong></span>
+                    <div className="flex items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <input
+                          type="checkbox"
+                          checked={selectedForDeleteIds.includes(player.id)}
+                          onChange={() => toggleSelectForDelete(player.id)}
+                          className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer shrink-0 accent-indigo-600"
+                          title="Pilih atlet ini untuk opsi hapus bersamaan"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                            <h4 className="text-xs font-bold text-slate-800 truncate">{player.name}</h4>
+                            {player.seed && (
+                              <span className="inline-flex items-center gap-0.5 bg-amber-50 text-amber-700 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border border-amber-200 shrink-0">
+                                ⭐ SEED {player.seed}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-amber-600 font-medium truncate font-mono">{player.club}</p>
+                          <div className="flex items-center gap-2 mt-1.5 text-[9px] text-slate-400 font-mono">
+                            <span>Main: <strong className="text-slate-600">{player.matchesPlayed}</strong></span>
+                            <span>•</span>
+                            <span>Menang: <strong className="text-emerald-800">{player.matchesWon}</strong></span>
+                            <span>•</span>
+                            <span>Set: <strong className="text-slate-600">{player.setsWon}</strong></span>
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={() => handleResetSinglePlayerStats(player.id, player.name)}
+                          className="p-1.5 bg-white hover:bg-amber-50 hover:text-amber-700 border border-slate-200 hover:border-amber-200 rounded text-slate-400 transition-all cursor-pointer"
+                          title="Reset Statistik Atlet Ini"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
                         <button
                           onClick={() => {
                             setEditingPlayerId(player.id);

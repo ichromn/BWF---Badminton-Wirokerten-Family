@@ -789,6 +789,33 @@ async function startServer() {
     res.json(player);
   });
 
+  // Reset all players stats endpoint
+  app.post("/api/players/reset-stats", (req, res) => {
+    state.players.forEach(p => {
+      p.matchesPlayed = 0;
+      p.matchesWon = 0;
+      p.setsWon = 0;
+      p.pointsWon = 0;
+    });
+    addNotification(`Statistik semua atlet (${state.players.length} atlet) berhasil direset ke 0.`, 'system');
+    res.json({ success: true, message: "Statistik semua atlet berhasil direset.", players: state.players });
+  });
+
+  // Reset single player stats endpoint
+  app.post("/api/players/:id/reset-stats", (req, res) => {
+    const { id } = req.params;
+    const player = state.players.find(p => p.id === id);
+    if (!player) {
+      return res.status(404).json({ error: "Pemain tidak ditemukan." });
+    }
+    player.matchesPlayed = 0;
+    player.matchesWon = 0;
+    player.setsWon = 0;
+    player.pointsWon = 0;
+    addNotification(`Statistik atlet ${player.name} berhasil direset ke 0.`, 'system');
+    res.json({ success: true, player });
+  });
+
   // Delete player endpoint
   app.post("/api/players/:id/delete", (req, res) => {
     const { id } = req.params;
@@ -800,6 +827,20 @@ async function startServer() {
     state.players.splice(index, 1);
     addNotification(`Pemain dihapus: ${deletedPlayer.name}`, 'system');
     res.json({ success: true, deletedPlayer });
+  });
+
+  // Batch delete players endpoint
+  app.post("/api/players/batch-delete", (req, res) => {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: "Harap pilih minimal 1 pemain untuk dihapus." });
+    }
+    const initialCount = state.players.length;
+    state.players = state.players.filter(p => !ids.includes(p.id));
+    const removedCount = initialCount - state.players.length;
+
+    addNotification(`Pemain dihapus secara massal: ${removedCount} atlet`, 'system');
+    res.json({ success: true, count: removedCount });
   });
 
 

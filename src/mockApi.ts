@@ -872,6 +872,36 @@ function handleMockRequest(urlStr: string, init?: RequestInit): Response {
       return createJsonResponse(player);
     }
 
+    // 5b. POST /api/players/reset-stats
+    if (path === '/api/players/reset-stats' && method === 'POST') {
+      state.players.forEach(p => {
+        p.matchesPlayed = 0;
+        p.matchesWon = 0;
+        p.setsWon = 0;
+        p.pointsWon = 0;
+      });
+      addNotification(state, `Statistik semua atlet (${state.players.length} atlet) berhasil direset ke 0.`, 'system');
+      saveLocalState(state);
+      return createJsonResponse({ success: true, message: "Statistik semua atlet berhasil direset.", players: state.players });
+    }
+
+    // 5c. POST /api/players/:id/reset-stats
+    const playerResetStatsMatch = path.match(/^\/api\/players\/([^\/]+)\/reset-stats$/);
+    if (playerResetStatsMatch && method === 'POST') {
+      const id = playerResetStatsMatch[1];
+      const player = state.players.find(p => p.id === id);
+      if (!player) {
+        return createJsonResponse({ error: "Pemain tidak ditemukan." }, 404);
+      }
+      player.matchesPlayed = 0;
+      player.matchesWon = 0;
+      player.setsWon = 0;
+      player.pointsWon = 0;
+      addNotification(state, `Statistik atlet ${player.name} berhasil direset ke 0.`, 'system');
+      saveLocalState(state);
+      return createJsonResponse({ success: true, player });
+    }
+
     // 6. POST /api/players/:id/delete
     const playerDeleteMatch = path.match(/^\/api\/players\/([^\/]+)\/delete$/);
     if (playerDeleteMatch && method === 'POST') {
@@ -885,6 +915,21 @@ function handleMockRequest(urlStr: string, init?: RequestInit): Response {
       addNotification(state, `Pemain dihapus: ${deletedPlayer.name}`, 'system');
       saveLocalState(state);
       return createJsonResponse({ success: true, deletedPlayer });
+    }
+
+    // 6b. POST /api/players/batch-delete
+    if (path === '/api/players/batch-delete' && method === 'POST') {
+      const { ids } = bodyData;
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return createJsonResponse({ error: "Harap pilih minimal 1 pemain untuk dihapus." }, 400);
+      }
+      const initialCount = state.players.length;
+      state.players = state.players.filter(p => !ids.includes(p.id));
+      const removedCount = initialCount - state.players.length;
+
+      addNotification(state, `Pemain dihapus secara massal: ${removedCount} atlet`, 'system');
+      saveLocalState(state);
+      return createJsonResponse({ success: true, count: removedCount });
     }
 
     // 7. POST /api/tournament/draw
